@@ -3,6 +3,16 @@
 from __future__ import annotations
 
 
+class IndexNotBuiltError(RuntimeError):
+    """Raised when a Hansard/questions FTS5 index is opened for reading but has
+    not been built yet (missing file, or the core tables are empty).
+
+    The MCP server never builds the index in a request path (PLAN.md §6.5 pt 2):
+    the offline ``ni-assembly-mcp index`` job does. Tools catch this and return a
+    short "run the index command" message rather than hanging.
+    """
+
+
 class NIAssemblyAPIError(RuntimeError):
     """Raised when data.niassembly.gov.uk returns something other than usable JSON.
 
