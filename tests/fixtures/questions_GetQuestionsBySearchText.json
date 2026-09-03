@@ -1,0 +1,30 @@
+{
+  "QuestionsList": {
+    "Question": [
+      {
+        "DocumentId": "101",
+        "Reference": "AQW 100/22-27",
+        "TabledDate": "2026-05-01T00:00:00+01:00",
+        "QuestionText": "To ask the Minister of Health about hospital waiting lists.",
+        "QOralAnswerRequested": "false",
+        "QuestionDetails": "https://aims.niassembly.gov.uk/questions/printquestionsummary.aspx?docid=101"
+      },
+      {
+        "DocumentId": "102",
+        "Reference": "AQW 101/22-27",
+        "TabledDate": "2026-06-10T00:00:00+01:00",
+        "QuestionText": "To ask the Minister of Education about school funding.",
+        "QOralAnswerRequested": "false",
+        "QuestionDetails": "https://aims.niassembly.gov.uk/questions/printquestionsummary.aspx?docid=102"
+      },
+      {
+        "DocumentId": "103",
+        "Reference": "AQW 102/22-27",
+        "TabledDate": "2026-04-01T00:00:00+01:00",
+        "QuestionText": "To ask the Minister for Infrastructure about hospital transport provision.",
+        "QOralAnswerRequested": "true",
+        "QuestionDetails": "https://aims.niassembly.gov.uk/questions/printquestionsummary.aspx?docid=103"
+      }
+    ]
+  }
+}

@@ -18,6 +18,9 @@ EXPECTED_TOOLS = {
     "get_registered_interests",
     "list_ministerial_roles",
     "get_state_of_the_parties",
+    # Phase 4 — parliamentary questions
+    "search_parliamentary_questions",
+    "get_question_details",
 }
 
 

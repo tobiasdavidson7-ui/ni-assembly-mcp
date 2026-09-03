@@ -19,7 +19,7 @@ from datetime import UTC, date, datetime
 from typing import Annotated, Any, TypeVar
 
 from dateutil import parser as _dateparser
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, BeforeValidator, ConfigDict, Field, field_validator
 
 
 def parse_ni_datetime(value: Any) -> Any:
@@ -181,3 +181,55 @@ class RegisteredInterest(NIABaseModel):
     register_category: str | None = Field(None, alias="RegisterCategory")
     register_entry: str | None = Field(None, alias="RegisterEntry")
     register_entry_start_date: NIADateTime | None = Field(None, alias="RegisterEntryStartDate")
+
+
+# --- Questions (PLAN.md Phase 4 / §6.0-§6.1) -------------------------------------
+
+
+class Question(NIABaseModel):
+    """A parliamentary-question row.
+
+    The ``questions.asmx`` operations return **different field sets** for the same
+    record: ``GetQuestionsBySearchText`` is the leanest (no tabler/department/
+    answer), the range endpoints are fuller, and ``GetQuestionDetails`` is the
+    only one carrying the answer text and ``AnsweredOnDate`` (PLAN.md §6.0). This
+    model is the union; absent fields simply come back as ``None`` and are
+    dropped by :func:`coerce_records`.
+
+    Department and the oral-answer flag are spelled differently across endpoints
+    (``DepartmentId``/``DepartmentID``, ``DepartmentName``/``Department``), hence
+    the :class:`~pydantic.AliasChoices`.
+    """
+
+    document_id: int | None = Field(None, alias="DocumentId")
+    document_type: str | None = Field(None, alias="DocumentType")
+    reference: str | None = Field(None, alias="Reference")
+    tabled_date: NIADateTime | None = Field(None, alias="TabledDate")
+    answer_by_date: NIADateTime | None = Field(None, alias="AnswerByDate")
+    answered_on_date: NIADateTime | None = Field(None, alias="AnsweredOnDate")
+
+    question_text: str | None = Field(None, alias="QuestionText")
+    question_details_url: str | None = Field(None, alias="QuestionDetails")
+    oral_answer_requested: bool | None = Field(
+        None, validation_alias=AliasChoices("QOralAnswerRequested", "OralAnswerRequested", "oral_answer_requested")
+    )
+    priority_request: bool | None = Field(None, alias="PriorityRequest")
+
+    tabler_person_id: int | None = Field(None, alias="TablerPersonId")
+    tabler_name: str | None = Field(None, alias="TablerName")
+    tabler_title: str | None = Field(None, alias="TablerTitle")
+    tabler_affiliation_id: int | None = Field(None, alias="TablerAffiliationId")
+
+    minister_person_id: int | None = Field(None, alias="MinisterPersonId")
+    minister_title: str | None = Field(None, alias="MinisterTitle")
+
+    department_id: int | None = Field(
+        None, validation_alias=AliasChoices("DepartmentId", "DepartmentID", "department_id")
+    )
+    department_name: str | None = Field(
+        None, validation_alias=AliasChoices("DepartmentName", "Department", "department_name")
+    )
+
+    answer_plain_text: str | None = Field(None, alias="AnswerPlainText")
+    answer_html: str | None = Field(None, alias="AnswerHtml")
+    answer_open_xml: str | None = Field(None, alias="AnswerOpenXml")

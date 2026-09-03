@@ -15,6 +15,7 @@ from ni_assembly_mcp.tools.member_detail import (
     list_ministerial_roles,
 )
 from ni_assembly_mcp.tools.members import search_members
+from ni_assembly_mcp.tools.questions import get_question_details, search_parliamentary_questions
 from ni_assembly_mcp.tools.reference import (
     get_constituencies,
     get_departments,
@@ -38,6 +39,9 @@ ALL_TOOLS: list[Callable] = [
     get_registered_interests,
     list_ministerial_roles,
     get_state_of_the_parties,
+    # Phase 4 — parliamentary questions
+    search_parliamentary_questions,
+    get_question_details,
 ]
 
 __all__ = ["ALL_TOOLS"]
