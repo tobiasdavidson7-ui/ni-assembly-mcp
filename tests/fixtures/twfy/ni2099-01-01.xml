@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE publicwhip [
+<!ENTITY pound "&#163;">
+]>
+<publicwhip>
+<major-heading id="uk.org.publicwhip/ni/2099-01-01.1.0" time="10:30">Executive Committee Business</major-heading>
+<minor-heading id="uk.org.publicwhip/ni/2099-01-01.2.1">Arts Funding: North/South Disparity</minor-heading>
+<speech id="uk.org.publicwhip/ni/2099-01-01.2.2" person_id="uk.org.publicwhip/person/1001" speakername="Edwin Poots" time="10:31" url="http://example/1">
+<p>The Minister funded the arts to the tune of &pound;5 million.</p>
+<p>Second paragraph about funding.</p>
+</speech>
+<speech id="uk.org.publicwhip/ni/2099-01-01.2.3" person_id="uk.org.publicwhip/person/9999" speakername="Jane Unmapped">
+<p>I disagree about the arts budget.</p>
+</speech>
+<minor-heading id="uk.org.publicwhip/ni/2099-01-01.3.1">Health Waiting Lists</minor-heading>
+<speech id="uk.org.publicwhip/ni/2099-01-01.3.2" person_id="uk.org.publicwhip/person/1002" speakername="Conor Murphy">
+<p>Waiting lists are far too long.</p>
+</speech>
+</publicwhip>

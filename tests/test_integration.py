@@ -8,6 +8,11 @@ from __future__ import annotations
 
 import pytest
 
+from ni_assembly_mcp.index_db import open_index
+from ni_assembly_mcp.index_query import distinct_headings
+from ni_assembly_mcp.ingest.http import PoliteFetcher
+from ni_assembly_mcp.ingest.people_map import load_person_map
+from ni_assembly_mcp.ingest.twfy import parse_scrape_file
 from ni_assembly_mcp.niassembly_client import niassembly_get
 from ni_assembly_mcp.tools.member_detail import (
     get_detailed_member_information,
@@ -120,6 +125,33 @@ async def test_get_motion_context_live():
     result = await get_motion_context(document_id=409547)
     assert result["motion"]["document_id"] == 409547
     assert result["bill"]["reference_number"].startswith("NIA Bill")
+
+
+async def test_hansard_index_one_real_scrape_file(test_settings):
+    """Fetch one real TWFY scrape file, parse it, index it, and search headings."""
+    fetcher = PoliteFetcher(test_settings)
+    people = await load_person_map(fetcher, test_settings)
+    assert people.coverage > 50  # NI PersonIds present in parlparse
+
+    filename = "ni2026-06-30.xml"
+    xml_bytes = await fetcher.get_bytes(f"{test_settings.twfy_base_url}/{filename}")
+    rows = list(parse_scrape_file(xml_bytes, filename, people))
+    assert len(rows) > 100
+    assert any(r["person_id"] for r in rows)  # current-mandate speakers map
+
+    conn = open_index(test_settings.index_db_path)
+    try:
+        from ni_assembly_mcp.index_db import upsert_contributions
+
+        upsert_contributions(conn, rows)
+        conn.commit()
+        all_headings = distinct_headings(conn, None, date_from="2026-06-01", date_to="2026-07-01", limit=200)
+        assert all_headings and all(h["debate_date"] == "2026-06-30" for h in all_headings)
+        # a word taken from a real heading must be findable (stemmed)
+        term = next(h["major_heading"] for h in all_headings if h["major_heading"]).split()[0]
+        assert distinct_headings(conn, term, date_from="2026-06-01", date_to="2026-07-01", limit=20)
+    finally:
+        conn.close()
 
 
 async def test_get_motion_context_petition_of_concern_live():

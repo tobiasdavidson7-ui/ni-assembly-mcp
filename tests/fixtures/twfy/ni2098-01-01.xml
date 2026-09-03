@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<publicwhip>
+<major-heading id="uk.org.publicwhip/ni/2098-01-01.1.0">Broken Report</major-heading>
+<speech id="uk.org.publicwhip/ni/2098-01-01.1.1" speakername="Nobody">
+<p>This paragraph is never closed
+</speech>

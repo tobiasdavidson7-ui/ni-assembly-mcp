@@ -42,10 +42,21 @@ class Settings(BaseSettings):
     )
     hishel_ttl: timedelta = timedelta(days=1)
 
-    # --- FTS5 index (Phase 6b; not used yet) ---
+    # --- FTS5 index (Phase 6b) ---
     index_db_path: Path = Field(
         default_factory=lambda: _xdg("XDG_DATA_HOME", ".local/share") / "ni-assembly-mcp" / "index.db"
     )
+
+    # --- offline indexer (PLAN.md §6.6 / §6.5 pt 4) ---
+    # Hansard is ingested from TheyWorkForYou's static bulk XML (no API key); the NI
+    # data API is used only for a short freshness top-up. The indexer runs gentler
+    # than the tool client against both hosts.
+    twfy_base_url: str = "https://www.theyworkforyou.com/pwdata/scrapedxml/ni"
+    people_json_url: str = "https://raw.githubusercontent.com/mysociety/parlparse/master/members/people.json"
+    index_http_max_rate_per_second: float = 2.0
+    index_http_max_concurrency: int = 3
+    index_circuit_break_failures: int = 5
+    hansard_topup_days: int = 30
 
     user_agent: str = "ni-assembly-mcp (+https://github.com/tobias-davidson/ni-assembly-mcp)"
 

@@ -1,0 +1,30 @@
+{
+  "persons": [
+    {
+      "id": "uk.org.publicwhip/person/1001",
+      "identifiers": [
+        {"scheme": "data.niassembly.gov.uk", "identifier": "90"}
+      ]
+    },
+    {
+      "id": "uk.org.publicwhip/person/1002",
+      "identifiers": [
+        {"scheme": "datadotparl.uk", "identifier": "zzz"},
+        {"scheme": "data.niassembly.gov.uk", "identifier": "80"}
+      ]
+    },
+    {
+      "id": "uk.org.publicwhip/person/9999",
+      "identifiers": [
+        {"scheme": "wikidata", "identifier": "Q1"}
+      ]
+    }
+  ],
+  "memberships": [
+    {
+      "id": "uk.org.publicwhip/member/5001",
+      "person_id": "uk.org.publicwhip/person/1001",
+      "organization_id": "northern-ireland-assembly"
+    }
+  ]
+}
