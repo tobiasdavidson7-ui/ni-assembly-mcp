@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ spec.title }} — NI Assembly Open Data{% endblock %}
+{% block content %}
+<p><a href="/">&larr; all forms</a></p>
+<h1>{{ spec.title }}</h1>
+<p class="summary">{{ spec.summary }}</p>
+
+{% if errors %}
+<div class="errors">
+  <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form class="query" method="post" action="/forms/{{ spec.name }}">
+  {% for field in spec.fields %}
+  <div>
+    <label for="f-{{ field.name }}">
+      {{ field.label }}{% if field.required %} <span title="required">*</span>{% endif %}
+      {% if field.help %}<span class="help">{{ field.help }}</span>{% endif %}
+    </label>
+    {% if field.kind == "bool" %}
+      <select id="f-{{ field.name }}" name="{{ field.name }}">
+        <option value="">(default)</option>
+        <option value="true" {% if values.get(field.name) == "true" %}selected{% endif %}>Yes</option>
+        <option value="false" {% if values.get(field.name) == "false" %}selected{% endif %}>No</option>
+      </select>
+    {% elif field.kind == "choice" %}
+      <select id="f-{{ field.name }}" name="{{ field.name }}">
+        {% for choice in field.choices %}
+        <option value="{{ choice }}" {% if values.get(field.name) == choice %}selected{% endif %}>{{ choice }}</option>
+        {% endfor %}
+      </select>
+    {% else %}
+      <input id="f-{{ field.name }}" name="{{ field.name }}"
+        type="{% if field.kind == 'date' %}date{% elif field.kind == 'int' %}number{% else %}text{% endif %}"
+        value="{{ values.get(field.name, '') }}"
+        {% if field.required %}required{% endif %}>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <div><button type="submit">Run</button></div>
+</form>
+
+{% if result %}
+<div class="result">
+  {% if result.kind == "message" %}
+    <p>{{ result.text }}</p>
+  {% elif result.kind == "record" %}
+    <div class="tablewrap"><table>
+      {% for key, value in result.pairs %}
+      <tr><th>{{ key }}</th><td>{{ value }}</td></tr>
+      {% endfor %}
+    </table></div>
+  {% elif result.kind == "table" %}
+    <p>{{ result.count }} row{{ "s" if result.count != 1 }}.</p>
+    <div class="tablewrap"><table>
+      <tr>{% for col in result.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+      {% for row in result.rows %}
+      <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </table></div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

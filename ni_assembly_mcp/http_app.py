@@ -10,8 +10,8 @@ front of both. So we build the app ourselves here:
     build_server()  ->  register custom routes  ->  streamable_http_app()
                     ->  RateLimitMiddleware(...)  ->  uvicorn
 
-Commit 1 registers only ``/healthz``; the forms and connect routes are added in
-the following commits.
+Commit 1 registers only ``/healthz``; commit 2 adds the no-LLM forms UI (``/`` and
+``/forms/<name>``); the "connect your own LLM" page follows in commit 3.
 """
 
 from __future__ import annotations
@@ -41,7 +41,10 @@ def _register_routes(server: MCPServer) -> None:
 
     Call once per server instance (``custom_route`` appends unconditionally).
     """
+    from ni_assembly_mcp.forms import register_form_routes
+
     server.custom_route("/healthz", methods=["GET"], include_in_schema=False)(_healthz)
+    register_form_routes(server)
 
 
 def build_http_app(

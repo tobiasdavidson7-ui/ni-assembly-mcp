@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Northern Ireland Assembly Open Data</h1>
+<p class="summary">Query the Assembly's open data directly — members, questions,
+plenary business, divisions and the Official Report — with plain HTML forms and
+no language model. Programmatic clients can use the
+<a href="/mcp/">MCP endpoint</a> instead.</p>
+
+{% for group, specs in groups %}
+<h2>{{ group }}</h2>
+<ul class="forms">
+  {% for spec in specs %}
+  <li><a href="/forms/{{ spec.name }}">{{ spec.title }}</a> — {{ spec.summary }}</li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% endblock %}

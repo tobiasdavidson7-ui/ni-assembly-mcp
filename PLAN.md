@@ -391,15 +391,22 @@ host later without rework. Three commits; pause for review after each.
   trip+recovery), middleware (`429` + header, `/healthz` exempt, disabled flag), `build_http_app`
   wiring (`/healthz` 200, burst to `/mcp` → `429`). 190 pass, no network.
 
-**Commit 2 — forms backend: routes + tool dispatch + HTML rendering** (not started)
-- `ni_assembly_mcp/forms/` — declarative form specs (fields, target tool fn, arg mapping, hard
-  `max_results` cap), Starlette routes (`GET /`, `GET|POST /forms/<name>`) calling the tool
-  functions directly (no LLM), Jinja2 templates (autoescape — public input), result → table/list
-  renderer. Base layout footer carries the TWFY + NI Assembly Official-Report reuse attribution
-  (README §Licensing / NOTICE) since it's now public-facing. `jinja2` dep added here.
-- Dispatch is a fixed whitelist of read/bounded tools — the `index … --full` builder is a CLI
-  subcommand, never a tool, unreachable from HTTP by construction; a test pins that.
-- Routes plug into `build_http_app` so commit 1's middleware covers them.
+**Commit 2 — forms backend: routes + tool dispatch + HTML rendering** ✅ done 2026-09-03
+- `ni_assembly_mcp/forms/` — `specs.py` (23 declarative `FormSpec`s over `ALL_TOOLS`, grouped;
+  `FormField` kinds text/date/int/bool/choice; `HARD_RESULT_CAP=100` + `clamp_counts()` bounds
+  `max_results`/`num_contributors`/`num_contributions`), `render.py` (`normalise()` →
+  message/record/table; nested cell values as pretty JSON), `views.py` (own autoescaping Jinja2
+  `Environment` + `FileSystemLoader`; `GET /` index, `GET|POST /forms/{name}`; POST coerces
+  submitted strings, required-field + int-parse validation, `await spec.tool(**kwargs)`, any
+  exception → message not 500; `register_form_routes(server)`), `templates/` base+index+form
+  (footer: TWFY + Official-Report + "never sends your queries to any language model").
+- `http_app._register_routes` now also calls `register_form_routes`; middleware from commit 1
+  wraps the combined app so `/` and `/forms/*` are rate-limited (`/healthz` still exempt).
+- `jinja2>=3.1.0` added to deps; templates ship in the wheel (verified via WheelBuilder).
+- Import-time guard in `specs.py` raises if any `spec.tool` is not in `ALL_TOOLS`; the offline
+  `index …` builders are CLI-only, never tool fns — `tests/test_forms.py` (17 tests) pins that
+  + coercion/clamp/normalise units + blank-render of every form + 404 + required-field + XSS
+  escape + one respx-mocked dispatch + rate-limit coverage. 207 tests pass.
 
 **Commit 3 — "connect your own LLM" page + styling + Docker/README wiring** (not started)
 - `GET /connect` from `NI_ASSEMBLY_MCP_PUBLIC_URL` (placeholder default): read-only/no-account/

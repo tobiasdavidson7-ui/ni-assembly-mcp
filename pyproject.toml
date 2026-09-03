@@ -28,6 +28,9 @@ dependencies = [
     # uvicorn are pinned directly rather than relied on transitively via mcp[cli].
     "starlette>=1.6.0",
     "uvicorn>=0.32.0",
+    # Phase 10 commit 2: the no-LLM forms UI renders autoescaped Jinja2 templates
+    # (public input) served from the same app as /mcp.
+    "jinja2>=3.1.0",
 ]
 
 [dependency-groups]

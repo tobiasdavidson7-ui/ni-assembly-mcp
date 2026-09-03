@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}NI Assembly Open Data{% endblock %}</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         margin: 0; padding: 0 1rem 3rem; max-width: 60rem; margin-inline: auto; }
+  header { padding: 1rem 0; border-bottom: 1px solid #8884; margin-bottom: 1.5rem; }
+  header a { text-decoration: none; font-weight: 600; }
+  h1 { font-size: 1.4rem; margin: .2rem 0 .3rem; }
+  h2 { font-size: 1rem; margin: 1.6rem 0 .5rem; text-transform: uppercase;
+       letter-spacing: .04em; opacity: .7; }
+  .summary { opacity: .8; margin-top: 0; }
+  ul.forms { list-style: none; padding: 0; margin: 0; }
+  ul.forms li { margin: .35rem 0; }
+  form.query { display: grid; gap: .8rem; margin: 1rem 0 2rem; }
+  form.query label { display: block; font-weight: 600; margin-bottom: .2rem; }
+  form.query .help { font-weight: 400; opacity: .7; font-size: .85em; }
+  form.query input, form.query select { font: inherit; padding: .35rem .4rem;
+    width: 100%; max-width: 22rem; box-sizing: border-box; }
+  button { font: inherit; padding: .45rem 1.1rem; cursor: pointer; }
+  .errors { border: 1px solid #c33; background: #c331; padding: .5rem .8rem; border-radius: 4px; }
+  .result { margin-top: 1.5rem; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: .86rem; }
+  th, td { border: 1px solid #8884; padding: .3rem .5rem; text-align: left; vertical-align: top; }
+  td { white-space: pre-wrap; max-width: 30rem; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #8884;
+           font-size: .8rem; opacity: .75; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">NI Assembly Open Data</a> &nbsp;·&nbsp;
+  <span>no-LLM forms</span> &nbsp;·&nbsp;
+  <a href="/mcp/">MCP endpoint</a>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>
+  <p>An unofficial interface to the
+  <a href="https://data.niassembly.gov.uk">Northern Ireland Assembly Open Data API</a>.
+  Official Report (Hansard) search additionally builds on data from
+  <a href="https://www.theyworkforyou.com">TheyWorkForYou</a> (mySociety):
+  <em>data service provided by TheyWorkForYou</em>. Debate text is under the
+  Open Parliament Licence / the Assembly's own Official Report reuse terms;
+  speaker identifiers are CC BY-SA 2.5.</p>
+  <p>This site is not affiliated with the Northern Ireland Assembly or with
+  mySociety / TheyWorkForYou. It never sends your queries to any language model.</p>
+</footer>
+</body>
+</html>
