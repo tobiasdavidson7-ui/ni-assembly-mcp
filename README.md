@@ -203,6 +203,103 @@ is the native form:
 
 Claude Code: `claude mcp add --transport http ni-assembly http://localhost:8000/mcp/`.
 
+### Deploying to Oracle Cloud (Always Free)
+
+Oracle Cloud's Always Free tier includes an Ampere A1 (ARM64) allowance — up to
+4 OCPUs / 24 GB RAM / 200 GB block storage — which runs this stack comfortably at
+no cost. The image is `linux/arm64`-clean: the `python:3.12-slim` base,
+`pydantic-core` and `MarkupSafe` all publish aarch64 wheels, and Debian's bundled
+SQLite has FTS5 enabled on ARM exactly as on x86. Nothing in the `Dockerfile` or
+`docker-compose.yaml` changes for ARM.
+
+> [!NOTE]
+> **ARM capacity.** "Out of host capacity" errors when creating the A1 instance
+> are common in busy regions — an Oracle capacity constraint, not a problem with
+> this project. Retry (Oracle releases capacity continuously), try another
+> availability domain or region, or script the retry. Once the instance exists it
+> stays yours.
+
+1. **Create the VM.** Follow Oracle's guide to launch an Always Free
+   [Ampere A1 compute instance](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/launchinginstance.htm)
+   with an **Ubuntu 22.04/24.04 (aarch64)** image. In the VCN security list, add
+   ingress rules for **TCP 80 and 443** from `0.0.0.0/0`.
+
+2. **Open the host firewall.** Oracle's Ubuntu images ship restrictive `iptables`
+   rules, so the security-list opening alone is not enough:
+
+   ```bash
+   sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+   sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+   sudo netfilter-persistent save
+   ```
+
+   Leave TCP 8000 closed — only Caddy (on the host) should reach the app.
+
+3. **Install Docker + Compose** from Docker's
+   [apt repository](https://docs.docker.com/engine/install/ubuntu/) (arm64 is
+   first-class; the `docker compose` plugin is included). Add your user to the
+   `docker` group and re-login.
+
+4. **Install Caddy** from its
+   [apt repository](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).
+
+5. **Clone and configure.**
+
+   ```bash
+   git clone https://github.com/tobias-davidson/ni-assembly-mcp.git
+   cd ni-assembly-mcp
+   printf 'NI_ASSEMBLY_MCP_HTTP_PUBLIC_URL=https://mcp.example.com\n' > .env
+   ```
+
+   The trust-proxy flag must also reach the container. Leaving
+   `docker-compose.yaml` untouched, add a `docker-compose.override.yaml` beside
+   it (Compose merges it automatically):
+
+   ```yaml
+   services:
+     mcp-server:
+       environment:
+         - NI_ASSEMBLY_MCP_HTTP_TRUST_PROXY_HEADERS=true
+   ```
+
+   This is **required** behind Caddy — see the warning at the top of
+   [Hosting over HTTP (Docker)](#hosting-over-http-docker). Leave
+   `NI_ASSEMBLY_MCP_HTTP_FORWARDED_ALLOW_IPS` at its default (`*`): the app is
+   only reachable through Caddy because port 8000 is firewalled.
+
+6. **Build the index once, then start.**
+
+   ```bash
+   docker compose run --rm mcp-server index hansard --full
+   docker compose run --rm mcp-server index questions --full   # optional
+   docker compose up -d
+   ```
+
+   Both full builds are network-bound and run for roughly **15–30 minutes each**
+   (Hansard walks ~2 400 bulk-XML files; questions crawls ~150 range windows).
+   Progress is logged line by line — a long quiet-looking stretch is the crawl
+   working through its politeness rate limit, not a hang. Only `index hansard`
+   is needed for the Hansard search tools; `index questions` just upgrades
+   `search_parliamentary_questions` from its live fallback to the local index.
+
+7. **Point Caddy at it.** Copy [`deploy/Caddyfile`](deploy/Caddyfile) to
+   `/etc/caddy/Caddyfile`, replace the domain and email placeholders, set the
+   domain's A/AAAA records to the VM's public IP, then `sudo systemctl reload
+   caddy`. Caddy obtains a Let's Encrypt certificate on the first request.
+
+Verify: `curl https://mcp.example.com/healthz` returns `{"status": "ok"}`, and
+`https://mcp.example.com/connect` shows your public endpoint.
+
+**Persistent state needs no special handling.** Oracle's boot and block volumes
+are ordinary block storage, so the `index` and `http-cache` named volumes in
+`docker-compose.yaml` work as-is and survive `docker compose down` and reboots.
+Back them up by snapshotting the block volume, or:
+
+```bash
+docker run --rm -v ni-assembly-mcp_index:/v -v "$PWD":/b alpine \
+  tar czf /b/index-backup.tgz -C /v .
+```
+
 ## Building the search index
 
 Several tools read a local SQLite FTS5 index, built **offline** — the server

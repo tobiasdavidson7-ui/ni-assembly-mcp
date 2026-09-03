@@ -1,0 +1,33 @@
+# Reverse proxy + automatic HTTPS for a hosted ni-assembly-mcp.
+#
+# Pairs with the README section "Deploying to Oracle Cloud (Always Free)", but
+# works on any host where the container publishes port 8000 and Caddy runs on
+# the host (the same shape as a generic VPS path).
+#
+# Caddy -- not the app -- now faces the internet, so the container MUST run with
+#   NI_ASSEMBLY_MCP_HTTP_TRUST_PROXY_HEADERS=true
+# or per-IP rate limiting collapses into a single shared bucket keyed on Caddy's
+# address. See the WARNING at the top of the README's "Hosting over HTTP"
+# section. Caddy sets X-Forwarded-For / X-Forwarded-Proto on every proxied
+# request by default.
+#
+# Setup:
+#   1. Point the domain's A (and AAAA) record at the VM's public IP.
+#   2. Open inbound TCP 80 + 443 in BOTH the Oracle security list and the VM's
+#      own iptables (Oracle's Ubuntu images filter by default).
+#   3. Replace the two placeholders below, install at /etc/caddy/Caddyfile,
+#      then: sudo systemctl reload caddy
+#
+# Streamable-HTTP MCP responses are long-lived text/event-stream streams; Caddy
+# detects that Content-Type and disables response buffering automatically, so no
+# extra flush_interval config is needed.
+
+{
+	# Let's Encrypt account email (certificate-expiry notices).
+	email you@example.com
+}
+
+mcp.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8000
+}
