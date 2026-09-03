@@ -204,16 +204,19 @@ async def test_motion_context_composes_sections(load_fixture):
     _p("GetPlenaryAddressees").mock(return_value=_json(_NO_ADDRESSEES))
     _p("GetMotionAmendments").mock(return_value=_json(load_fixture("plenary_GetMotionAmendments.json")))
     _p("GetMotionBill").mock(return_value=_json(load_fixture("plenary_GetMotionBill.json")))
-    _p("GetMotionPetitionOfConcern").mock(return_value=_json({"MotionPetitionOfConcern": None}))
+    _p("GetMotionPetitionOfConcern").mock(
+        return_value=_json(load_fixture("plenary_GetMotionPetitionOfConcern.json"))
+    )
 
     out = await get_motion_context(document_id=409547)
     assert out["motion"]["title"].startswith("Final Stage")
     assert out["bill"]["reference_number"] == "NIA Bill 6/22-27"
     assert out["amendments"][0]["parent_document_id"] == 415521
     assert [t["tabler_person_id"] for t in out["tablers"]] == [5808, 6157]
-    # empty sections omitted
+    assert out["petition_of_concern"]["parent_document_id"] == 242152
+    assert out["petition_of_concern"]["title"].startswith("Petition of Concern")
+    # empty section omitted
     assert "addressees" not in out
-    assert "petition_of_concern" not in out
 
 
 @respx.mock

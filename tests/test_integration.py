@@ -120,3 +120,13 @@ async def test_get_motion_context_live():
     result = await get_motion_context(document_id=409547)
     assert result["motion"]["document_id"] == 409547
     assert result["bill"]["reference_number"].startswith("NIA Bill")
+
+
+async def test_get_motion_context_petition_of_concern_live():
+    # 242152 — the Nov-2015 Marriage Equality motion, blocked by a Petition of
+    # Concern (doc 247608). No PoC exists in the current mandate, so this is the
+    # only live check of that shape — see MotionPetitionOfConcern's docstring.
+    result = await get_motion_context(document_id=242152)
+    poc = result["petition_of_concern"]
+    assert poc["parent_document_id"] == 242152
+    assert poc["document_id"] == 247608

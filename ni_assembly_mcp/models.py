@@ -393,10 +393,17 @@ class MotionBill(NIABaseModel):
 class MotionPetitionOfConcern(NIABaseModel):
     """A Petition of Concern lodged against a motion, from
     ``GetMotionPetitionOfConcern`` — an NI-specific cross-community veto mechanism.
-    Field set is preserved verbatim (``extra="allow"``); ``ParentDocumentID`` /
-    ``TabledDate`` / ``Text`` are the commonly-present keys."""
+
+    Shape verified against one historical example (doc 247608, the PoC against the
+    Nov-2015 Marriage Equality motion): ``DocumentID`` (the PoC's own id),
+    ``ParentDocumentID`` (the motion), ``TabledDate``, ``PlenaryDate``, ``Title``.
+    The endpoint does **not** return the signatories. No PoC has been lodged in
+    the current mandate; ``extra="allow"`` keeps any additional keys a future one
+    might carry.
+    """
 
     document_id: int | None = Field(None, alias="DocumentID")
     parent_document_id: int | None = Field(None, alias="ParentDocumentID")
+    title: str | None = Field(None, alias="Title")
     tabled_date: NIADateTime | None = Field(None, alias="TabledDate")
-    text: str | None = Field(None, alias="Text")
+    plenary_date: NIADateTime | None = Field(None, alias="PlenaryDate")
