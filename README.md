@@ -113,6 +113,20 @@ to `index.db`. Size the `index` volume for both if you build both.
 
 ## Hosting over HTTP (Docker)
 
+> [!WARNING]
+> **Deploying behind a reverse proxy or load balancer (Render, Fly.io, Railway,
+> Cloudflare, nginx, Caddy, an ingress controller — anything that is not the app
+> facing the internet directly)?** You **must** set
+> `NI_ASSEMBLY_MCP_HTTP_TRUST_PROXY_HEADERS=true` (and, if your proxy is not on a
+> loopback/private hop, `NI_ASSEMBLY_MCP_HTTP_FORWARDED_ALLOW_IPS` to that hop).
+> Otherwise every request appears to come from the proxy's single IP, and
+> **per-IP rate limiting silently collapses into one shared global bucket for all
+> visitors** — one busy user then rate-limits everybody, and a single abuser is
+> indistinguishable from normal traffic. There is no error and no log line when
+> this happens; it just quietly stops working. Conversely, only turn it on when a
+> proxy really is in front — with the app at the edge, `X-Forwarded-For` is
+> attacker-controlled and would defeat the per-IP limit the other way.
+
 The default local setup is stdio and needs no container. Use
 [`docker-compose.yaml`](docker-compose.yaml) when you want to *host* the server
 for other clients. It runs two services on shared `index` / `http-cache`
@@ -147,6 +161,14 @@ hosting cost without getting in the way of a normal MCP session.
 | `NI_ASSEMBLY_MCP_HTTP_GLOBAL_COOLDOWN_SECONDS` | `30` | how long every request gets `503` once the breaker trips |
 | `NI_ASSEMBLY_MCP_HTTP_TRUST_PROXY_HEADERS` | `false` | behind a load balancer, set `true` so the per-IP limit keys on `X-Forwarded-For` and not the proxy |
 | `NI_ASSEMBLY_MCP_HTTP_FORWARDED_ALLOW_IPS` | `*` | which upstream hops may set forwarding headers (only read when the above is `true`) |
+
+The per-IP limit only works if the server sees the real client IP. Behind any
+proxy (see the warning at the top of this section) that means
+`NI_ASSEMBLY_MCP_HTTP_TRUST_PROXY_HEADERS=true` — without it all traffic shares
+the proxy's IP and only the global breaker still does anything useful. Quick
+check after deploying: hit `/mcp` from two different machines faster than the
+limit; if the *second* machine gets `429` immediately, proxy headers are not
+being trusted and you need to fix the setting.
 
 State is per-process. A single container (the zero-cost target) is fine as-is;
 running several replicas would need a shared store and is not supported yet.
