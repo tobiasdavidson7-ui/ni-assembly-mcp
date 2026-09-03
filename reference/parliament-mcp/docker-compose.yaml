@@ -1,0 +1,39 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - parliament-mcp-network
+    # Note: Qdrant container doesn't include curl, so we'll rely on port availability
+    # The service is healthy if it's responding on port 6333
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.mcp-server
+    container_name: mcp-server
+    ports:
+      - "${MCP_PORT}:${MCP_PORT}"
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    env_file:
+      - path: .env
+        required: true
+    networks:
+      - parliament-mcp-network
+    depends_on:
+      - qdrant
+
+volumes:
+  qdrant_data:
+    driver: local
+
+networks:
+  parliament-mcp-network:
+    driver: bridge
