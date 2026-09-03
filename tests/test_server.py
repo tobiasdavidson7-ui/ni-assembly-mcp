@@ -30,6 +30,9 @@ EXPECTED_TOOLS = {
     # Phase 6b — Hansard
     "get_hansard_reports",
     "search_debate_titles",
+    # Phase 6c — Hansard contribution search
+    "search_contributions",
+    "find_relevant_contributors",
 }
 
 

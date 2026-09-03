@@ -1,12 +1,14 @@
-"""Hansard tools (PLAN.md Phase 6b — the two ex-6a tools).
+"""Hansard tools.
 
-The NI data API has no Hansard search, so ``search_debate_titles`` reads the
-local SQLite FTS5 index (built offline by ``ni-assembly-mcp index hansard`` from
-TheyWorkForYou's bulk XML — PLAN.md §6.6). ``get_hansard_reports`` is a thin
-wrapper over the one Hansard list endpoint and needs no index.
+The NI data API has no Hansard search, so everything except ``get_hansard_reports``
+reads the local SQLite FTS5 index (built offline by ``ni-assembly-mcp index
+hansard`` from TheyWorkForYou's bulk XML — PLAN.md §6.6). ``get_hansard_reports``
+is a thin wrapper over the one Hansard list endpoint and needs no index.
 
-Phase 6c adds ``search_contributions`` / ``find_relevant_contributors`` on the
-same index behind :class:`~ni_assembly_mcp.index_query.HansardSearchBackend`.
+- Phase 6b: ``get_hansard_reports``, ``search_debate_titles``.
+- Phase 6c: ``search_contributions``, ``find_relevant_contributors`` — both pure
+  consumers of the index behind
+  :class:`~ni_assembly_mcp.index_query.HansardSearchBackend` (PLAN.md §6.3 / §6.4).
 """
 
 from __future__ import annotations
@@ -102,3 +104,95 @@ async def search_debate_titles(
     if not rows:
         return f"No debate headings matched {query!r} between {window_from} and {window_to}."
     return rows
+
+
+@log_tool_call
+async def search_contributions(
+    query: Annotated[
+        str | None,
+        Field(description="Keyword(s) to match in the spoken text. Stemmed, BM25-ranked; not semantic."),
+    ] = None,
+    member_id: Annotated[
+        int | None, Field(description="Only contributions by this member (NI PersonId).")
+    ] = None,
+    date_from: Annotated[str | None, Field(description="On/after this date (YYYY-MM-DD).")] = None,
+    date_to: Annotated[str | None, Field(description="On/before this date (YYYY-MM-DD).")] = None,
+    max_results: Annotated[int, Field(description="Maximum contributions to return.", ge=1)] = 50,
+) -> list[dict] | str:
+    """Full-text search over what members actually said in the Chamber (1998 to present).
+
+    Reads the local Hansard index. With ``query`` set, results are Porter-stemmed
+    ("funding" matches "funded") and BM25-ranked, each with a ``snippet`` around
+    the match and a ``relevance_score``. With no ``query``, returns the most
+    recent contributions matching the filters. Still lexical, **not** semantic —
+    pure-synonym queries ("school funding" vs "education budget") will miss.
+
+    The ``member_id`` filter is reliable for debates from ~2022 onward; for
+    earlier debates many speakers are matched by name only and carry no id, so a
+    ``member_id`` filter under-returns there.
+
+    If the index has not been built this returns a short instruction instead of
+    results.
+    """
+    backend = Fts5Backend(settings)
+    try:
+        rows = backend.contributions(
+            (query or "").strip() or None,
+            member_id=member_id,
+            date_from=date_from,
+            date_to=date_to,
+            limit=max_results,
+        )
+    except IndexNotBuiltError:
+        return _NOT_BUILT_MSG
+    if not rows:
+        return "No contributions matched the given query and filters."
+    return rows
+
+
+@log_tool_call
+async def find_relevant_contributors(
+    query: Annotated[
+        str, Field(description="Topic keyword(s). Required. Stemmed, BM25-weighted; not semantic.")
+    ],
+    num_contributors: Annotated[
+        int, Field(description="Maximum members to return.", ge=1)
+    ] = 10,
+    num_contributions: Annotated[
+        int, Field(description="Maximum example contributions per member.", ge=1)
+    ] = 10,
+    date_from: Annotated[str | None, Field(description="On/after this date (YYYY-MM-DD).")] = None,
+    date_to: Annotated[str | None, Field(description="On/before this date (YYYY-MM-DD).")] = None,
+) -> list[dict] | str:
+    """Members ranked by how much they spoke on the query terms (1998 to present).
+
+    Reads the local Hansard index. Each member's score is the BM25-weighted sum
+    of their matching contributions (so both relevance and volume count);
+    ``contribution_count`` and per-snippet ``relevance_score`` are returned so the
+    ranking is inspectable. Lexical, **not** semantic — biased toward members who
+    used the exact terms.
+
+    Per-member attribution is complete for ~2022 onward. For earlier periods,
+    members whose identity could not be resolved are grouped under their spoken
+    name (``person_id`` null) or, if unnamed, omitted — so historical rankings
+    undercount.
+
+    If the index has not been built this returns a short instruction instead of
+    results.
+    """
+    if not query.strip():
+        return "A query is required for find_relevant_contributors."
+    backend = Fts5Backend(settings)
+    try:
+        groups = backend.relevant_contributors(
+            query.strip(),
+            date_from=date_from,
+            date_to=date_to,
+            num_contributors=num_contributors,
+            num_contributions=num_contributions,
+        )
+    except IndexNotBuiltError:
+        return _NOT_BUILT_MSG
+    if not groups:
+        return f"No contributors matched {query!r} in the given period."
+    return groups

@@ -8,7 +8,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from ni_assembly_mcp.tools.hansard import get_hansard_reports, search_debate_titles
+from ni_assembly_mcp.tools.hansard import (
+    find_relevant_contributors,
+    get_hansard_reports,
+    search_contributions,
+    search_debate_titles,
+)
 from ni_assembly_mcp.tools.member_detail import (
     get_detailed_member_information,
     get_registered_interests,
@@ -59,6 +64,9 @@ ALL_TOOLS: list[Callable] = [
     # Phase 6b — Hansard reports & debate-title search (FTS5 index)
     get_hansard_reports,
     search_debate_titles,
+    # Phase 6c — Hansard contribution search & contributor ranking (FTS5 index)
+    search_contributions,
+    find_relevant_contributors,
 ]
 
 __all__ = ["ALL_TOOLS"]

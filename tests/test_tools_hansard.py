@@ -4,7 +4,12 @@ import httpx
 import respx
 
 from ni_assembly_mcp.index_db import open_index, upsert_contributions
-from ni_assembly_mcp.tools.hansard import get_hansard_reports, search_debate_titles
+from ni_assembly_mcp.tools.hansard import (
+    find_relevant_contributors,
+    get_hansard_reports,
+    search_contributions,
+    search_debate_titles,
+)
 
 BASE = "https://data.niassembly.gov.uk"
 
@@ -97,4 +102,63 @@ async def test_search_debate_titles_respects_date_window(test_settings):
 async def test_search_debate_titles_no_match_message(test_settings):
     _seed_index(test_settings)
     result = await search_debate_titles("brexit", date_from="2026-01-01", date_to="2026-12-31")
+    assert isinstance(result, str) and "brexit" in result
+
+
+# --- search_contributions --------------------------------------------------
+
+
+async def test_search_contributions_not_built_message(test_settings):
+    result = await search_contributions("funding")
+    assert isinstance(result, str)
+    assert "index hansard" in result
+
+
+async def test_search_contributions_hit(test_settings):
+    _seed_index(test_settings)
+    rows = await search_contributions("funded")
+    assert [r["speech_id"] for r in rows] == ["d1.1"]
+    assert rows[0]["relevance_score"] is not None
+    assert rows[0]["speakername"] == "Edwin Poots"
+
+
+async def test_search_contributions_member_filter(test_settings):
+    _seed_index(test_settings)
+    result = await search_contributions("funded", member_id=80)
+    assert isinstance(result, str)  # d1.1 is person 90
+
+
+async def test_search_contributions_no_query_newest_first(test_settings):
+    _seed_index(test_settings)
+    rows = await search_contributions(None, max_results=10)
+    assert [r["speech_id"] for r in rows] == ["d1.1", "d2.1"]  # 2026-06-30 before 2026-01-15
+    assert rows[0]["relevance_score"] is None
+
+
+# --- find_relevant_contributors -------------------------------------------
+
+
+async def test_find_relevant_contributors_not_built_message(test_settings):
+    result = await find_relevant_contributors("waiting")
+    assert isinstance(result, str)
+    assert "index hansard" in result
+
+
+async def test_find_relevant_contributors_requires_query(test_settings):
+    result = await find_relevant_contributors("   ")
+    assert isinstance(result, str) and "required" in result
+
+
+async def test_find_relevant_contributors_groups_and_ranks(test_settings):
+    _seed_index(test_settings)
+    groups = await find_relevant_contributors("waiting lists")
+    assert groups[0]["person_id"] == 80
+    assert groups[0]["speakername"] == "Conor Murphy"
+    assert groups[0]["contribution_count"] == 1
+    assert groups[0]["contributions"][0]["speech_id"] == "d2.1"
+
+
+async def test_find_relevant_contributors_no_match_message(test_settings):
+    _seed_index(test_settings)
+    result = await find_relevant_contributors("brexit")
     assert isinstance(result, str) and "brexit" in result

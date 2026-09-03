@@ -86,8 +86,8 @@ operations across the six services (`members`, `organisations`, `plenary`, `hans
 
 ### 1f. Coverage summary
 
-- **Keep & remap:** `search_members`, `get_detailed_member_information`, `get_departments`, `list_ministerial_roles`, `get_state_of_the_parties`, `list_all_committees`, `search_parliamentary_questions`, `search_debate_titles`, `search_contributions` (9) — `search_debate_titles` now ships in Phase 6b off the FTS5 index, not as a standalone Phase 6a live walk (6a dropped 2026-09-03).
-- **Degrade heavily:** `get_committee_details`, `find_relevant_contributors` (2)
+- **Keep & remap:** `search_members`, `get_detailed_member_information`, `get_departments`, `list_ministerial_roles`, `get_state_of_the_parties`, `list_all_committees`, `search_parliamentary_questions`, `search_debate_titles`, `search_contributions` (9) — `search_debate_titles` ships in Phase 6b off the FTS5 index, not a standalone Phase 6a live walk (6a dropped 2026-09-03); `search_contributions` ships in Phase 6c off the same index.
+- **Degrade heavily:** `get_committee_details`, `find_relevant_contributors` (2) — `find_relevant_contributors` shipped in Phase 6c (FTS5 BM25-weighted contributor ranking).
 - **Drop:** `get_election_results`, `get_committee_document` (2)
 - **Add:** ~7 NI-only tools, mostly plenary/divisions/register
 
@@ -231,11 +231,22 @@ now carries `get_hansard_reports` + `search_debate_titles`, ex-6a)
   `search_debate_titles` 🟡 (`SELECT DISTINCT` over `major_heading`/`minor_heading` in a date
   range, behind `HansardSearchBackend`). Define the `HansardSearchBackend` protocol in this phase.
 
-**Phase 6c — `search_contributions` + `find_relevant_contributors`** (gated on 6b)
+**Phase 6c — `search_contributions` + `find_relevant_contributors`** (gated on 6b) — **shipped 2026-09-03**
 - Both are **FTS5-backed only** — no live-walk version ships, even labelled (§6.5 pt 1).
-- `Fts5Backend` implements `HansardSearchBackend`; `find_relevant_contributors` is a pure consumer
-  (group FTS5 hits by PersonId, rank by BM25-sum × hit-count).
-- Ship with the §6.3 / §6.4 description rewrites.
+- `Fts5Backend` implements `HansardSearchBackend` (grown from 6b's one method to three:
+  `debate_titles`, `contributions`, `relevant_contributors`). `find_relevant_contributors` is a
+  pure consumer — group FTS5 hits by PersonId (casefolded `speakername` fallback when unmapped).
+- **Contributor score = `Σ(-bm25(hit))`, linear in hit count** — *not* the `Σ(BM25) × hit-count`
+  in the original text below. That product is quadratic in volume (`Σ` already scales with hit
+  count), so many weak mentions bury a strong one. v1 ships BM25-weighted volume, which is what
+  the §6.4 description promises, and returns `contribution_count` + per-hit `relevance_score` so
+  the ranking stays inspectable. Revisit with `mean(w) × log(1+count)` if results skew to prolific
+  speakers. (See `ni_assembly_mcp/index_query.py` module docstring.)
+- Shipped with the §6.3 / §6.4 description rewrites. `search_contributions` drops PMCP's
+  `house` / `debate_id` args (unicameral; no stable debate id in the TWFY-sourced index) and
+  keeps `query` optional (empty ⇒ newest-first, filter-only). `find_relevant_contributors`
+  requires `query`. Both return the "run `ni-assembly-mcp index hansard`" string when the index
+  is absent.
 
 **Search-backend options behind the protocol**: (a) live walk — **not built** (Phase 6a dropped
 2026-09-03); **(b) SQLite FTS5 — the target, 6b**; (c) Qdrant + embeddings — only if lexical recall
@@ -429,19 +440,23 @@ live component walk. The walk below is retained only as (a) the rejected fallbac
 4. **Performance:** there is **no header-only endpoint** — you fetch every component (~140/report, tens of KB) to extract headers. Unbounded = **~800 fetches ≈ 4–5 min cold**, then served from the **persistent on-disk HTTP cache** for ~24 h (§6.5 pt 3 — one-off per TTL window, not per restart). Bounded to a quarter (~20 sitting days) ≈ 6–8 s. **`date_from`/`date_to` required** (default last ~6 months). Phase 6c re-points this at the FTS5 index and the cold walk disappears.
 5. **Relevance vs PMCP: worse, least badly.** Section headings are short and formulaic; substring works for known topics, fails on paraphrase. With the 6b index the match becomes stemmed/BM25 rather than raw substring. **Tool-description change:** "Keyword match on debate/section headings within a date range; not semantic; ordered by date."
 
-### 6.3 `search_contributions` — index-only (Phase 6c)
+### 6.3 `search_contributions` — index-only (Phase 6c) — **shipped 2026-09-03**
 
-1. **Query path (6c):** FTS5 lookup over the contributions table; optional `member_id` / `date_from` / `date_to` as SQL filters; BM25 ranking.
+1. **Query path (6c):** FTS5 lookup over the contributions table; optional `member_id` / `date_from` / `date_to` as SQL filters; BM25 ranking. Empty `query` ⇒ filter-only, newest first (`relevance_score` null). Each hit carries a `snippet` (FTS5 `snippet()` around the match, or leading text when no query).
 2. **Indexer fetch path (6b, per §6.6):** parse TWFY `scrapedxml/ni/*.xml` — each `<speech person_id speakername time>` under `<major-heading>`/`<minor-heading>`; map `person_id` → NI `PersonId` via `people.json`; store `(speech_id, date, major_heading, minor_heading, person_id, twfy_person_id, speakername, text)` in FTS5. Plus a rolling 30-day top-up from `GetHansardComponentsByPlenaryDate_JSON` for the scrape lag.
 3. **Historical member mapping gap:** ~30% all-time / 96% current-mandate PersonId coverage (§6.6). Unmapped speakers keep `speakername` + `twfy_person_id` and fall back to name match; member-filtered queries on old debates may miss.
 4. **Performance:** full speech text — ~100–500 KB JSON/day. **Full history ≈ 800 calls ≈ 100–400 MB parsed — not viable per query.** This is why it does not ship before the index (§6.5 pt 1): the live walk is the *indexer's* fetch path only. Query-time = FTS5 lookup, sub-second.
 5. **Relevance vs PMCP: much worse without the index; acceptable with it.** Embeddings served this best (what was *said about* a concept across debates); FTS5 (Porter stemming + BM25 + phrase/NEAR) recovers most lexical recall and gives real ranking. **Tool-description (6c):** "Full-text search (stemmed, BM25-ranked) over spoken contributions from 1998 to present; requires the local index; date filters optional; still lexical, not semantic — pure-synonym queries may miss. The `member_id` filter is reliable for debates from ~2022 onward; for earlier debates some speakers are matched by name only and a `member_id` filter may under-return."
 
-### 6.4 `find_relevant_contributors` — index-only (Phase 6c)
+### 6.4 `find_relevant_contributors` — index-only (Phase 6c) — **shipped 2026-09-03**
 
-1. **Candidates:** FTS5 query over the contributions table (`query` mandatory).
+1. **Candidates:** FTS5 query over the contributions table (`query` mandatory; empty ⇒ error string).
 2. **Server-side:** n/a — reads the local index.
-3. **Logic:** FTS5 match → group hits by PersonId → score contributor = Σ(BM25) × (# matching contributions) → top `num_contributors`, each with top `num_contributions` snippets.
+3. **Logic:** FTS5 match (top `_CONTRIBUTOR_SCAN_CAP` = 4000 hits by BM25) → group by PersonId
+   (casefolded `speakername` fallback when unmapped) → **score = `Σ(-bm25(hit))`** (BM25-weighted
+   volume, linear in hit count — see the §4 Phase 6c note on why not `× hit-count`) → top
+   `num_contributors`, each with its `num_contributions` strongest snippets, plus
+   `contribution_count` and per-snippet `relevance_score`.
 4. **Performance:** index lookup + in-memory group-by. No live fetch at query time.
 5. **Relevance vs PMCP: still weaker** (BM25 aggregate vs semantic aggregate — biased toward members who used the exact terms), but defensible. **Never ships pre-index** (§6.5 pt 1); the live-walk version ranked by raw hit-count is misleading enough that a labelled-degraded interim was rejected. **Tool-description (6c):** "Members ranked by how much they spoke on the query terms (BM25-weighted) in the given period; lexical, not semantic. Per-member attribution is complete for ~2022 onward; for earlier periods members whose identity could not be resolved are grouped under their spoken name or omitted from the ranking, so historical results undercount."
 
