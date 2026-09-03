@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Connect your own client — NI Assembly Open Data{% endblock %}
+{% block content %}
+<p><a href="/">&larr; all forms</a></p>
+<h1>Connect your own MCP client</h1>
+<p class="summary">Point any HTTP-capable MCP client — Claude Desktop, Claude Code,
+or your own agent — at this server and use its tools with <em>your</em> language
+model. This server only answers Assembly data queries: it never handles your LLM
+calls, your prompts or your API key.</p>
+
+<h2>Endpoint</h2>
+<p>Streamable-HTTP MCP endpoint:</p>
+<pre class="snippet">{{ mcp_url }}</pre>
+<p class="summary">Read-only. No account, no sign-up, no cost. Per-IP and
+overall rate limits apply to all traffic on this host.</p>
+
+<h2>Claude Desktop / Claude Code — native HTTP</h2>
+<p>Clients that speak streamable HTTP directly (merge into
+<code>claude_desktop_config.json</code>, or see
+<a href="https://github.com/tobias-davidson/ni-assembly-mcp/blob/main/claude_config.http.json">claude_config.http.json</a>):</p>
+<pre class="snippet">{{ native_snippet }}</pre>
+
+<h2>Clients that need a stdio bridge — <code>mcp-remote</code></h2>
+<p>If your client only supports stdio subprocess servers, bridge to the HTTP
+endpoint with <a href="https://www.npmjs.com/package/mcp-remote">mcp-remote</a>
+(needs Node.js):</p>
+<pre class="snippet">{{ mcp_remote_snippet }}</pre>
+{% endblock %}

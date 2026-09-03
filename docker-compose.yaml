@@ -25,6 +25,16 @@ services:
     command: ["serve", "--http", "--host", "0.0.0.0", "--port", "8000"]
     ports:
       - "${NI_ASSEMBLY_MCP_PORT:-8000}:8000"
+    environment:
+      # Public base URL, shown on the /connect page's copy-paste client config.
+      - NI_ASSEMBLY_MCP_HTTP_PUBLIC_URL=${NI_ASSEMBLY_MCP_HTTP_PUBLIC_URL:-http://localhost:8000}
+      # Rate-limit knobs (Phase 10 commit 1) -- override as needed.
+      - NI_ASSEMBLY_MCP_HTTP_RATE_LIMIT_PER_MINUTE=${NI_ASSEMBLY_MCP_HTTP_RATE_LIMIT_PER_MINUTE:-120}
+      - NI_ASSEMBLY_MCP_HTTP_GLOBAL_RATE_LIMIT_PER_MINUTE=${NI_ASSEMBLY_MCP_HTTP_GLOBAL_RATE_LIMIT_PER_MINUTE:-1200}
+      # Behind a reverse proxy / PaaS load balancer (Render, Fly, Railway, nginx),
+      # uncomment so the per-IP limit keys on the real client and not the proxy.
+      # Only turn this on when a proxy really is in front (see README warning).
+      # - NI_ASSEMBLY_MCP_HTTP_TRUST_PROXY_HEADERS=true
     volumes:
       - index:/data/index
       - http-cache:/data/http-cache

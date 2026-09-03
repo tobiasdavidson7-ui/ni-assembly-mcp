@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     # edge — X-Forwarded-For would then be spoofable.
     http_trust_proxy_headers: bool = False
     http_forwarded_allow_ips: str = "*"  # only consulted when trust_proxy_headers is on
+    # Public base URL the server is reachable at, used only to render the copy-paste
+    # client config on `GET /connect`. Placeholder default; override in any real
+    # deployment (e.g. NI_ASSEMBLY_MCP_HTTP_PUBLIC_URL=https://ni-assembly.example).
+    http_public_url: str = "http://localhost:8000"
 
 
 settings = Settings()

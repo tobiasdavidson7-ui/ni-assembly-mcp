@@ -1,9 +1,11 @@
-"""Starlette handlers for the no-LLM forms UI (PLAN.md Phase 10 commit 2).
+"""Starlette handlers for the no-LLM public UI (PLAN.md Phase 10, commits 2 and 3).
 
 ``GET /``            — index: every form grouped by domain.
 ``GET /forms/<name>`` — the blank form.
 ``POST /forms/<name>`` — coerce the submitted strings, call the bound tool
                          function directly, render the result as a table/record.
+``GET /connect``      — static "point your own MCP client here" page: the ``/mcp/``
+                         URL and two copy-paste client-config snippets.
 
 The routes are attached with :meth:`MCPServer.custom_route`, so they land on the
 *same* Starlette app as ``/mcp`` and sit behind commit 1's rate-limit middleware
@@ -12,6 +14,7 @@ The routes are attached with :meth:`MCPServer.custom_route`, so they land on the
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -21,6 +24,7 @@ from starlette.responses import HTMLResponse
 
 from ni_assembly_mcp.forms.render import normalise
 from ni_assembly_mcp.forms.specs import FORMS, FORMS_BY_NAME, FormField, FormSpec, clamp_counts
+from ni_assembly_mcp.settings import settings
 
 if TYPE_CHECKING:
     from mcp.server.mcpserver import MCPServer
@@ -96,6 +100,23 @@ async def index(_request: Request) -> HTMLResponse:
     return _render("index.html", groups=_grouped())
 
 
+def _mcp_url() -> str:
+    return settings.http_public_url.rstrip("/") + "/mcp/"
+
+
+async def connect(_request: Request) -> HTMLResponse:
+    """Static page: the hosted ``/mcp/`` URL + two client-config snippets."""
+    mcp_url = _mcp_url()
+    native = {"mcpServers": {"ni-assembly": {"url": mcp_url}}}
+    mcp_remote = {"mcpServers": {"ni-assembly": {"command": "npx", "args": ["-y", "mcp-remote", mcp_url]}}}
+    return _render(
+        "connect.html",
+        mcp_url=mcp_url,
+        native_snippet=json.dumps(native, indent=2),
+        mcp_remote_snippet=json.dumps(mcp_remote, indent=2),
+    )
+
+
 async def form_view(request: Request) -> HTMLResponse:
     spec = FORMS_BY_NAME.get(request.path_params["name"])
     if spec is None:
@@ -110,4 +131,5 @@ async def form_view(request: Request) -> HTMLResponse:
 def register_form_routes(server: MCPServer) -> None:
     """Attach ``/`` and ``/forms/{name}``. Must run before ``streamable_http_app()``."""
     server.custom_route("/", methods=["GET"], include_in_schema=False)(index)
+    server.custom_route("/connect", methods=["GET"], include_in_schema=False)(connect)
     server.custom_route("/forms/{name}", methods=["GET", "POST"], include_in_schema=False)(form_view)

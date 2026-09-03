@@ -173,6 +173,36 @@ being trusted and you need to fix the setting.
 State is per-process. A single container (the zero-cost target) is fine as-is;
 running several replicas would need a shared store and is not supported yet.
 
+### Public web UI
+
+A hosted `serve --http` deployment also serves two plain HTML pages on the same
+app (same rate limits; no language model involved at any point):
+
+| Path | What it is |
+|---|---|
+| `GET /` | a no-LLM forms UI — one HTML form per tool, results rendered as a table. Nothing you type is ever sent to a language model. |
+| `GET /connect` | copy-paste config for pointing your *own* MCP client + LLM at this server's `/mcp/` endpoint. |
+
+`/connect` renders the endpoint URL from `NI_ASSEMBLY_MCP_HTTP_PUBLIC_URL`
+(default `http://localhost:8000` — set it to your real public origin, no trailing
+`/mcp/`). It offers both a native streamable-HTTP snippet and an
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) stdio-bridge snippet.
+
+For a client on the same machine as the container, [`claude_config.http.json`](claude_config.http.json)
+is the native form:
+
+```json
+{
+  "mcpServers": {
+    "ni-assembly": {
+      "url": "http://localhost:8000/mcp/"
+    }
+  }
+}
+```
+
+Claude Code: `claude mcp add --transport http ni-assembly http://localhost:8000/mcp/`.
+
 ## Building the search index
 
 Several tools read a local SQLite FTS5 index, built **offline** — the server

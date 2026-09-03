@@ -408,13 +408,21 @@ host later without rework. Three commits; pause for review after each.
   + coercion/clamp/normalise units + blank-render of every form + 404 + required-field + XSS
   escape + one respx-mocked dispatch + rate-limit coverage. 207 tests pass.
 
-**Commit 3 — "connect your own LLM" page + styling + Docker/README wiring** (not started)
-- `GET /connect` from `NI_ASSEMBLY_MCP_PUBLIC_URL` (placeholder default): read-only/no-account/
-  no-cost note, "this server never handles your LLM calls or API key", the `/mcp/` URL, and two
-  copy-paste config snippets (native `url` form + `mcp-remote` command form) mirroring
-  `claude_config.json`. `claude_config.http.json` committed. Shared CSS, footer finalised.
-- `docker-compose.yaml` gains the Phase 10 env vars (with `NI_ASSEMBLY_MCP_TRUST_PROXY_HEADERS=1`
-  commented for PaaS); no new service. README "Public forms UI" + connect sections.
+**Commit 3 — "connect your own client" page + styling + Docker/README wiring** ✅ done 2026-09-03
+- `GET /connect` (in `forms/views.py`, registered alongside `/` and `/forms/*`): reads
+  `settings.http_public_url` (env `NI_ASSEMBLY_MCP_HTTP_PUBLIC_URL`, placeholder default
+  `http://localhost:8000`), renders `templates/connect.html` — read-only/no-account/no-cost note,
+  "never handles your LLM calls, prompts or API key", the `<public_url>/mcp/` URL, and two
+  autoescaped JSON snippets (native `url` form + `npx -y mcp-remote` command form).
+- `claude_config.http.json` committed (native `url` form). `base.html` gains a `/connect` nav
+  link + `pre.snippet` CSS (`user-select: all`); `index.html` points at `/connect` instead of
+  the raw `/mcp/`.
+- `docker-compose.yaml` `mcp-server` gains an `environment:` block: `HTTP_PUBLIC_URL`,
+  `HTTP_RATE_LIMIT_PER_MINUTE`, `HTTP_GLOBAL_RATE_LIMIT_PER_MINUTE` (all `${VAR:-default}`) and a
+  commented `HTTP_TRUST_PROXY_HEADERS=true` for PaaS. No new service. README "Public web UI"
+  subsection under Hosting over HTTP.
+- `tests/test_connect.py` (5 tests): default URL, both snippets, `http_public_url` override,
+  index links to `/connect`, rate-limited like the rest. 212 tests pass.
 
 ### Dependency graph
 ```

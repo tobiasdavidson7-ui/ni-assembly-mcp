@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "ni-assembly": {
+      "url": "http://localhost:8000/mcp/"
+    }
+  }
+}
