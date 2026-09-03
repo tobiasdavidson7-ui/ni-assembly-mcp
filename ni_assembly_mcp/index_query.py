@@ -2,10 +2,18 @@
 protocol.
 
 Kept separate from :mod:`ni_assembly_mcp.index_db` (schema / writes) so the MCP
-tool layer imports only what it queries. Phase 6b ships one query —
+tool layer imports only what it queries. Phase 6b shipped one query —
 :func:`distinct_headings`, behind :class:`HansardSearchBackend` — for
-``search_debate_titles``. Phase 6c grows the protocol with contribution search
-and contributor ranking (PLAN.md §6.3 / §6.4).
+``search_debate_titles``. Phase 6c adds :func:`search_contributions` (BM25 full-
+text over spoken bodies) and :func:`rank_contributors` (PLAN.md §6.3 / §6.4).
+
+**Contributor scoring (§6.4) is a v1 heuristic.** ``rank_contributors`` scores a
+member as ``sum(w_i)`` where ``w_i = -bm25(hit_i)`` -- BM25-weighted volume,
+*linear* in hit count. This deliberately drops the extra ``* hit_count``
+multiplier in the PLAN text (which makes the score scale like ``count ** 2`` and
+lets many weak mentions swamp a strong one). ``contribution_count`` and per-hit
+``relevance_score`` are returned alongside so the ranking stays legible. Revisit
+with ``mean(w) * log(1 + count)`` if results skew toward prolific speakers.
 """
 
 from __future__ import annotations
@@ -18,6 +26,45 @@ from ni_assembly_mcp.settings import Settings, settings
 
 # Match against the two heading columns only (not ``body``).
 _HEADING_COLUMNS = "{major_heading minor_heading}"
+
+# ``contribution_fts`` column order: 0 major_heading, 1 minor_heading, 2 body.
+_BODY_FTS_COL = 2
+_SNIPPET_TOKENS = 24  # FTS5 snippet() window (max 64)
+
+# BM25 column weights (major_heading, minor_heading, body) for contribution
+# search. Equal for v1 — a hit in the spoken body and a hit in the debate heading
+# count the same. Revisit if heading-only matches prove noisy.
+_CONTRIB_BM25_WEIGHTS = (1.0, 1.0, 1.0)
+_BM25_ARGS = ", ".join(str(w) for w in _CONTRIB_BM25_WEIGHTS)
+
+# Upper bound on how many top-ranked hits feed ``rank_contributors``' group-by.
+# A broad term ("health") matches many thousands of speeches; ranking off the
+# most-relevant slice keeps memory bounded and the result BM25-led.
+_CONTRIBUTOR_SCAN_CAP = 4000
+
+# ``contribution`` columns returned by :func:`search_contributions`.
+_CONTRIB_COLUMNS = (
+    "speech_id",
+    "debate_date",
+    "major_heading",
+    "minor_heading",
+    "person_id",
+    "speakername",
+    "speech_time",
+    "url",
+)
+_NOQUERY_SNIPPET_CHARS = 400  # leading-text fallback when there is no MATCH
+
+
+def _date_clause(date_from: str | None, date_to: str | None, params: list, *, col: str = "c.debate_date") -> str:
+    sql = ""
+    if date_from:
+        sql += f" AND {col} >= ?"
+        params.append(date_from)
+    if date_to:
+        sql += f" AND {col} <= ?"
+        params.append(date_to)
+    return sql
 
 
 def build_match_query(text: str, *, columns: str | None = None) -> str | None:
@@ -90,16 +137,179 @@ def distinct_headings(
     ]
 
 
+def _contribution_row(r: sqlite3.Row, *, scored: bool) -> dict:
+    row = {col: r[col] for col in _CONTRIB_COLUMNS}
+    row["snippet"] = (r["snippet"] or "").strip()
+    row["relevance_score"] = round(-r["rank"], 4) if scored else None
+    return row
+
+
+def search_contributions(
+    conn: sqlite3.Connection,
+    query: str | None,
+    *,
+    member_id: int | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 50,
+) -> list[dict]:
+    """Full-text search over spoken contributions (PLAN.md §6.3).
+
+    With ``query`` set: BM25-ranked (Porter-stemmed) match over the headings and
+    the spoken ``body``, best first, each row carrying a ``snippet`` around the
+    hit and a ``relevance_score`` (``-bm25``). With no ``query``: the rows
+    matching the filters, newest first, ``snippet`` = leading text,
+    ``relevance_score`` = ``None``.
+
+    ``member_id`` filters on ``contribution.person_id`` (reliably populated only
+    from ~2022 on — older speeches keep ``speakername`` but no id, so a
+    ``member_id`` filter under-returns for historical debates). ``date_from`` /
+    ``date_to`` are ``YYYY-MM-DD``.
+    """
+    match = build_match_query(query or "")
+    select_cols = ", ".join(f"c.{col}" for col in _CONTRIB_COLUMNS)
+
+    if match is None:
+        params: list = []
+        sql = (
+            f"SELECT {select_cols}, "
+            f"substr(c.body, 1, {_NOQUERY_SNIPPET_CHARS}) AS snippet, 0 AS rank "
+            "FROM contribution c WHERE 1=1"
+        )
+        sql += _date_clause(date_from, date_to, params)
+        if member_id is not None:
+            sql += " AND c.person_id = ?"
+            params.append(member_id)
+        sql += " ORDER BY c.debate_date DESC, c.speech_time DESC LIMIT ?"
+        params.append(limit)
+        return [_contribution_row(r, scored=False) for r in conn.execute(sql, params).fetchall()]
+
+    params = [match]
+    sql = (
+        f"SELECT {select_cols}, "
+        f"snippet(contribution_fts, {_BODY_FTS_COL}, '', '', '…', {_SNIPPET_TOKENS}) AS snippet, "
+        f"bm25(contribution_fts, {_BM25_ARGS}) AS rank "
+        "FROM contribution_fts f JOIN contribution c ON c.rowid = f.rowid "
+        "WHERE f.contribution_fts MATCH ?"
+    )
+    sql += _date_clause(date_from, date_to, params)
+    if member_id is not None:
+        sql += " AND c.person_id = ?"
+        params.append(member_id)
+    sql += " ORDER BY rank LIMIT ?"
+    params.append(limit)
+    return [_contribution_row(r, scored=True) for r in conn.execute(sql, params).fetchall()]
+
+
+def rank_contributors(
+    conn: sqlite3.Connection,
+    query: str,
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    num_contributors: int = 10,
+    num_contributions: int = 10,
+) -> list[dict]:
+    """Rank members by BM25-weighted volume on ``query`` (PLAN.md §6.4).
+
+    FTS5 match → group hits by ``person_id`` (falling back to a casefolded
+    ``speakername`` when the speaker is unmapped) → ``score = Σ(-bm25(hit))`` →
+    top ``num_contributors``, each with its ``num_contributions`` strongest
+    snippets. See the module docstring on why the score is linear (not ``count²``)
+    in hit count. Empty ``query`` → ``[]`` (the tool requires one).
+
+    Per-member attribution is complete only from ~2022 on; earlier speakers that
+    ``people.json`` did not map are grouped under their spoken name, so historical
+    rankings undercount.
+    """
+    match = build_match_query(query or "")
+    if match is None:
+        return []
+
+    params: list = [match]
+    sql = (
+        "SELECT c.speech_id, c.debate_date, c.major_heading, c.minor_heading, "
+        "c.person_id, c.speakername, c.url, "
+        f"snippet(contribution_fts, {_BODY_FTS_COL}, '', '', '…', {_SNIPPET_TOKENS}) AS snippet, "
+        f"bm25(contribution_fts, {_BM25_ARGS}) AS rank "
+        "FROM contribution_fts f JOIN contribution c ON c.rowid = f.rowid "
+        "WHERE f.contribution_fts MATCH ?"
+    )
+    sql += _date_clause(date_from, date_to, params)
+    sql += " ORDER BY rank LIMIT ?"
+    params.append(_CONTRIBUTOR_SCAN_CAP)
+
+    groups: dict = {}
+    for r in conn.execute(sql, params).fetchall():
+        weight = -r["rank"]
+        pid = r["person_id"]
+        key = ("id", pid) if pid is not None else ("name", (r["speakername"] or "").casefold())
+        group = groups.get(key)
+        if group is None:
+            group = groups[key] = {
+                "person_id": pid,
+                "speakername": r["speakername"],
+                "contribution_count": 0,
+                "score": 0.0,
+                "hits": [],
+            }
+        group["contribution_count"] += 1
+        group["score"] += weight
+        group["hits"].append(
+            {
+                "speech_id": r["speech_id"],
+                "debate_date": r["debate_date"],
+                "major_heading": r["major_heading"],
+                "minor_heading": r["minor_heading"],
+                "url": r["url"],
+                "snippet": (r["snippet"] or "").strip(),
+                "relevance_score": round(weight, 4),
+            }
+        )
+
+    ranked = sorted(groups.values(), key=lambda g: g["score"], reverse=True)[:num_contributors]
+    return [
+        {
+            "person_id": g["person_id"],
+            "speakername": g["speakername"],
+            "contribution_count": g["contribution_count"],
+            "score": round(g["score"], 4),
+            "contributions": sorted(g["hits"], key=lambda h: h["relevance_score"], reverse=True)[:num_contributions],
+        }
+        for g in ranked
+    ]
+
+
 class HansardSearchBackend(Protocol):
     """The swappable Hansard-search surface (PLAN.md §6.5 pt 1).
 
-    Phase 6b: one method. Phase 6c adds ``search_contributions`` and
-    ``find_relevant_contributors``. The live-walk backend was dropped with
-    Phase 6a; only :class:`Fts5Backend` implements this.
+    Phase 6b defined ``debate_titles``; Phase 6c adds ``contributions`` and
+    ``relevant_contributors``. The live-walk backend was dropped with Phase 6a;
+    only :class:`Fts5Backend` implements this.
     """
 
     def debate_titles(
         self, query: str | None, *, date_from: str, date_to: str, limit: int
+    ) -> list[dict]: ...
+
+    def contributions(
+        self,
+        query: str | None,
+        *,
+        member_id: int | None,
+        date_from: str | None,
+        date_to: str | None,
+        limit: int,
+    ) -> list[dict]: ...
+
+    def relevant_contributors(
+        self,
+        query: str,
+        *,
+        date_from: str | None,
+        date_to: str | None,
+        num_contributors: int,
+        num_contributions: int,
     ) -> list[dict]: ...
 
 
@@ -120,5 +330,44 @@ class Fts5Backend:
         conn = open_index(self._config.index_db_path, read_only=True)
         try:
             return distinct_headings(conn, query, date_from=date_from, date_to=date_to, limit=limit)
+        finally:
+            conn.close()
+
+    def contributions(
+        self,
+        query: str | None,
+        *,
+        member_id: int | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        conn = open_index(self._config.index_db_path, read_only=True)
+        try:
+            return search_contributions(
+                conn, query, member_id=member_id, date_from=date_from, date_to=date_to, limit=limit
+            )
+        finally:
+            conn.close()
+
+    def relevant_contributors(
+        self,
+        query: str,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        num_contributors: int = 10,
+        num_contributions: int = 10,
+    ) -> list[dict]:
+        conn = open_index(self._config.index_db_path, read_only=True)
+        try:
+            return rank_contributors(
+                conn,
+                query,
+                date_from=date_from,
+                date_to=date_to,
+                num_contributors=num_contributors,
+                num_contributions=num_contributions,
+            )
         finally:
             conn.close()
