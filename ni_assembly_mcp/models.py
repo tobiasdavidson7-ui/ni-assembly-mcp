@@ -16,10 +16,10 @@ added in their own phases.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, TypeVar
 
 from dateutil import parser as _dateparser
-from pydantic import BaseModel, BeforeValidator, ConfigDict, field_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
 
 
 def parse_ni_datetime(value: Any) -> Any:
@@ -73,3 +73,57 @@ class NIABaseModel(BaseModel):
         if isinstance(v, str) and v.strip() == "":
             return None
         return v
+
+
+NIAModelT = TypeVar("NIAModelT", bound=NIABaseModel)
+
+
+def coerce_records(model: type[NIAModelT], records: list[dict]) -> list[dict]:
+    """Validate raw NI records through ``model`` and dump them as plain dicts.
+
+    Declared fields come back snake_case (the aliases carry the API's PascalCase
+    key); unknown keys are preserved verbatim (``extra="allow"``). ``None`` values
+    are dropped so the payload handed to a model stays lean.
+    """
+    out: list[dict] = []
+    for record in records:
+        obj = model.model_validate(record)
+        out.append(obj.model_dump(mode="json", by_alias=False, exclude_none=True))
+    return out
+
+
+# --- Reference & list domains (PLAN.md Phase 2) -----------------------------------
+
+
+class Organisation(NIABaseModel):
+    """A row from any ``organisations.asmx`` list: departments, parties, all-party
+    groups, committees and the catch-all organisation list all share this shape."""
+
+    organisation_id: int | None = Field(None, alias="OrganisationId")
+    organisation_name: str | None = Field(None, alias="OrganisationName")
+    organisation_abbreviation: str | None = Field(None, alias="OrganisationAbbreviation")
+    organisation_type: str | None = Field(None, alias="OrganisationType")
+
+
+class Constituency(NIABaseModel):
+    constituency_id: int | None = Field(None, alias="ConstituencyId")
+    constituency_name: str | None = Field(None, alias="ConstituencyName")
+    constituency_ons_code: str | None = Field(None, alias="ConstituencyOnsCode")
+
+
+class Member(NIABaseModel):
+    """A member row as returned by the ``members.asmx`` list/search operations
+    (``GetAllCurrentMembers``, ``…BySurnameSearch``, ``…ByGivenDate`` etc.)."""
+
+    person_id: int | None = Field(None, alias="PersonId")
+    affiliation_id: int | None = Field(None, alias="AffiliationId")
+    member_name: str | None = Field(None, alias="MemberName")
+    member_first_name: str | None = Field(None, alias="MemberFirstName")
+    member_last_name: str | None = Field(None, alias="MemberLastName")
+    member_full_display_name: str | None = Field(None, alias="MemberFullDisplayName")
+    member_title: str | None = Field(None, alias="MemberTitle")
+    party_name: str | None = Field(None, alias="PartyName")
+    party_organisation_id: int | None = Field(None, alias="PartyOrganisationId")
+    constituency_name: str | None = Field(None, alias="ConstituencyName")
+    constituency_id: int | None = Field(None, alias="ConstituencyId")
+    member_image_url: str | None = Field(None, alias="MemberImgUrl")

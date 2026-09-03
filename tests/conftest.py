@@ -40,3 +40,14 @@ async def _reset_client():
     await reset_http_client()
     yield
     await reset_http_client()
+
+
+@pytest.fixture(autouse=True)
+def _patch_settings(monkeypatch, test_settings):
+    """Point the module-global ``settings`` at a tmp-dir config for every test.
+
+    Tools call ``niassembly_get`` without an explicit ``config=``; this keeps the
+    real HTTP cache dir untouched and the limits fast.
+    """
+    for module in ("ni_assembly_mcp.niassembly_client", "ni_assembly_mcp.http_client"):
+        monkeypatch.setattr(f"{module}.settings", test_settings)

@@ -284,8 +284,15 @@ i.AI's hosted deployment only.
 - **Transport decision (related):** upstream runs HTTP-only (`streamable_http_app()` on uvicorn) with
   a DNS-rebinding guard (`MCP_ALLOWED_HOSTS`) and a session-cleanup task. For local use, default to
   **stdio** (`mcp_server.run(transport="stdio")`) — no network surface, no `MCP_ALLOWED_HOSTS`, no
-  session GC, no `fastapi`/`uvicorn`. Keep the HTTP path behind a `serve --http` flag + `[http]` extra
-  for anyone who wants to host it; that's where a reverse-proxy/auth story would be re-added.
+  session GC, no `fastapi`/`uvicorn`. Keep the HTTP path behind a `serve --http` flag for anyone who
+  wants to host it; that's where a reverse-proxy/auth story would be re-added.
+- **Implemented (Phase 2, 2026-09-03):** the installed SDK is **`mcp` 2.x**, which renamed
+  `FastMCP` → `MCPServer` (`from mcp.server.mcpserver import MCPServer`; `server.run(transport=...)`,
+  `server.add_tool`, `server.list_tools`, `server.call_tool` — API otherwise equivalent) **and bundles
+  `starlette`/`uvicorn`/`sse-starlette`**. So the streamable-HTTP transport needs no extra deps: the
+  `[http]` optional-dependency group was dropped and `mcp[cli]` moved to the core dependencies. `fastapi`
+  is not used at all (the 2.x `run_streamable_http_async(host=, port=)` covers it). Session GC /
+  `MCP_ALLOWED_HOSTS` still not needed.
 
 ### 5c. Eval & benchmark harness
 

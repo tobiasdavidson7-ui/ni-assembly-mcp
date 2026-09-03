@@ -1,0 +1,16 @@
+{
+  "AllConstituencies": {
+    "Constituency": [
+      {
+        "ConstituencyId": "5",
+        "ConstituencyName": "Foyle",
+        "ConstituencyOnsCode": "N06000008"
+      },
+      {
+        "ConstituencyId": "1",
+        "ConstituencyName": "East Antrim",
+        "ConstituencyOnsCode": "N06000005"
+      }
+    ]
+  }
+}

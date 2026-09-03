@@ -1,0 +1,12 @@
+{
+  "OrganisationsList": {
+    "Organisation": [
+      {
+        "OrganisationId": "3",
+        "OrganisationName": "Committee for Agriculture, Environment and Rural Affairs",
+        "OrganisationAbbreviation": "AERA",
+        "OrganisationType": "Statutory Committee"
+      }
+    ]
+  }
+}

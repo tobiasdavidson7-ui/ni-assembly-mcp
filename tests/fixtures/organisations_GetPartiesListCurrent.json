@@ -1,0 +1,18 @@
+{
+  "OrganisationsList": {
+    "Organisation": [
+      {
+        "OrganisationId": "19",
+        "OrganisationName": "Alliance Party",
+        "OrganisationAbbreviation": "APNI",
+        "OrganisationType": "Political Party"
+      },
+      {
+        "OrganisationId": "24",
+        "OrganisationName": "Sinn Féin",
+        "OrganisationAbbreviation": "SF",
+        "OrganisationType": "Political Party"
+      }
+    ]
+  }
+}

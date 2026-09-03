@@ -19,14 +19,10 @@ dependencies = [
     "pydantic>=2.11.0",
     "pydantic-settings>=2.7.0",
     "python-dateutil>=2.9.0",
-]
-
-[project.optional-dependencies]
-# Hosted HTTP transport (default transport is stdio; see PLAN.md 5b).
-http = [
-    "mcp[cli]>=1.26.0",
-    "fastapi>=0.115.0",
-    "uvicorn>=0.34.0",
+    # MCP SDK. 2.x renamed FastMCP -> MCPServer and bundles the ASGI/uvicorn
+    # stack, so the streamable-HTTP transport needs no separate extra (unlike
+    # parliament-mcp on mcp 1.x). stdio is still the default transport (PLAN.md 5b).
+    "mcp[cli]>=2.1.0",
 ]
 
 [dependency-groups]

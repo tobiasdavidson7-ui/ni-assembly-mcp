@@ -7,17 +7,37 @@ Ported from [`i-dot-ai/parliament-mcp`](https://github.com/i-dot-ai/parliament-m
 (MIT, © 2025 i.AI). See [`PLAN.md`](PLAN.md) for the porting design and phase plan,
 and [`NOTICE`](NOTICE) for attribution.
 
-> Status: **early development.** Phase 1 (HTTP adapter) only. Not yet usable as an
-> MCP server.
+> Status: **early development.** Phase 2 (reference & list domains). The server
+> runs and exposes the tools below; member detail, questions, plenary and Hansard
+> tools are still to come (see [`PLAN.md`](PLAN.md) §4).
 
 This project is **not affiliated with the Northern Ireland Assembly** or with
 mySociety / TheyWorkForYou.
+
+## Tools
+
+| Tool | What it returns |
+|---|---|
+| `get_departments` | Current NI Executive departments (id, name, abbreviation) |
+| `get_parties` | Parties currently represented (with the party id used by `search_members`) |
+| `list_all_party_groups` | Current All-Party Groups |
+| `list_organisations` | Every current organisation the Assembly tracks, combined |
+| `list_all_committees` | Current committees — Standing / Statutory / Ad Hoc / Other, merged by default |
+| `get_constituencies` | The 18 Assembly constituencies (id, name, ONS code) |
+| `search_members` | MLAs by surname, constituency id, party id, or as-of date |
+
+## Running the server
+
+```bash
+ni-assembly-mcp serve            # stdio (default)
+ni-assembly-mcp serve --http --port 8000   # streamable HTTP
+```
 
 ## Development
 
 ```bash
 python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[http]"
+.venv/Scripts/python -m pip install -e .
 .venv/Scripts/python -m pip install pytest pytest-asyncio respx ruff
 
 .venv/Scripts/python -m pytest              # unit tests

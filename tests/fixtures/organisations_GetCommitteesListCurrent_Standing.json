@@ -1,0 +1,18 @@
+{
+  "OrganisationsList": {
+    "Organisation": [
+      {
+        "OrganisationId": "14",
+        "OrganisationName": "Business Committee",
+        "OrganisationAbbreviation": "BUS",
+        "OrganisationType": "Standing Committee"
+      },
+      {
+        "OrganisationId": "18",
+        "OrganisationName": "Public Accounts Committee",
+        "OrganisationAbbreviation": "PAC",
+        "OrganisationType": "Standing Committee"
+      }
+    ]
+  }
+}
