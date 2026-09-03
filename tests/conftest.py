@@ -49,5 +49,10 @@ def _patch_settings(monkeypatch, test_settings):
     Tools call ``niassembly_get`` without an explicit ``config=``; this keeps the
     real HTTP cache dir untouched and the limits fast.
     """
-    for module in ("ni_assembly_mcp.niassembly_client", "ni_assembly_mcp.http_client"):
-        monkeypatch.setattr(f"{module}.settings", test_settings)
+    for module in (
+        "ni_assembly_mcp.niassembly_client",
+        "ni_assembly_mcp.http_client",
+        "ni_assembly_mcp.index_query",
+        "ni_assembly_mcp.tools.hansard",
+    ):
+        monkeypatch.setattr(f"{module}.settings", test_settings, raising=False)

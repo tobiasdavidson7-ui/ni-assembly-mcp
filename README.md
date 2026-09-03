@@ -7,9 +7,9 @@ Ported from [`i-dot-ai/parliament-mcp`](https://github.com/i-dot-ai/parliament-m
 (MIT, © 2025 i.AI). See [`PLAN.md`](PLAN.md) for the porting design and phase plan,
 and [`NOTICE`](NOTICE) for attribution.
 
-> Status: **early development.** Phase 5 (plenary business & divisions) complete.
-> The server runs and exposes the tools below; Hansard search tools are still to
-> come (see [`PLAN.md`](PLAN.md) §4).
+> Status: **early development.** Phase 6b (Hansard debate-title search off a local
+> FTS5 index) complete. `search_contributions` / `find_relevant_contributors` are
+> still to come (Phase 6c — see [`PLAN.md`](PLAN.md) §4).
 
 This project is **not affiliated with the Northern Ireland Assembly** or with
 mySociety / TheyWorkForYou.
@@ -36,6 +36,8 @@ mySociety / TheyWorkForYou.
 | `get_divisions` | Recorded votes: a date-range list, or one division's result + per-member voting |
 | `get_motion_context` | A motion's details + tablers + amendments + linked Bill + Petition of Concern |
 | `get_no_day_named_motions` | Motions tabled with no scheduled debate date |
+| `get_hansard_reports` | Official Report (Hansard) sitting days, newest first |
+| `search_debate_titles` | Debate/section headings matching a keyword in a date range (local index; stemmed, not semantic) |
 
 ## Running the server
 
@@ -43,6 +45,27 @@ mySociety / TheyWorkForYou.
 ni-assembly-mcp serve            # stdio (default)
 ni-assembly-mcp serve --http --port 8000   # streamable HTTP
 ```
+
+## Building the Hansard index
+
+`search_debate_titles` (and, later, `search_contributions`) read a local SQLite
+FTS5 index — the NI Assembly API has no Hansard search. The index is built
+**offline**; the server never builds it in a request.
+
+```bash
+ni-assembly-mcp index hansard --full   # first build: TheyWorkForYou bulk XML, 1998->present
+ni-assembly-mcp index hansard          # incremental refresh (run periodically, e.g. daily)
+ni-assembly-mcp index status           # row counts + last refresh
+```
+
+Hansard is ingested from [TheyWorkForYou's bulk XML](https://www.theyworkforyou.com/pwdata/scrapedxml/ni/)
+(no API key), with speaker→`PersonId` mapping from mySociety's `parlparse`, plus a
+short freshness top-up from the NI data API. The index lives at `INDEX_DB_PATH`
+(default: the XDG data dir); point it somewhere persistent and back it with a
+volume in Docker.
+
+**Do not redistribute a built `index.db`** — it embeds TWFY-derived identifiers
+that are CC BY-SA 2.5 (ShareAlike). Distribute the builder only.
 
 ## Development
 
@@ -58,4 +81,14 @@ python -m venv .venv
 ## Licensing
 
 Code: MIT (see [`LICENSE`](LICENSE)). Data retrieved at runtime is subject to the
-NI Assembly's and (Phase 6b) mySociety/TheyWorkForYou's terms — see `PLAN.md` §5d.
+NI Assembly's terms; the Hansard index additionally builds on
+mySociety/TheyWorkForYou data — see `PLAN.md` §5d.
+
+The Hansard index is derived from TheyWorkForYou:
+
+> Data service provided by [TheyWorkForYou](https://www.theyworkforyou.com)
+
+with the debate text under the Open Parliament Licence / the NI Assembly's own
+Official Report reuse terms, and the speaker↔person identifiers under CC BY-SA 2.5.
+This project is unaffiliated with the Northern Ireland Assembly and with
+mySociety / TheyWorkForYou.

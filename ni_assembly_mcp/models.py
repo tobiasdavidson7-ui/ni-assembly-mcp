@@ -390,6 +390,17 @@ class MotionBill(NIABaseModel):
     is_accelerated_passage: bool | None = Field(None, alias="IsAcceleratedPassage")
 
 
+class HansardReport(NIABaseModel):
+    """One sitting-day stub from ``hansard.asmx/GetAllHansardReports`` — the index
+    of Official Report volumes. Carries no titles (those live in the components /
+    the FTS5 index); ``PlenaryDate`` is the sitting date."""
+
+    report_doc_id: int | None = Field(None, alias="ReportDocId")
+    plenary_date: NIADateTime | None = Field(None, alias="PlenaryDate")
+    plenary_session_id: int | None = Field(None, alias="PlenarySessionId")
+    plenary_session_name: str | None = Field(None, alias="PlenarySessionName")
+
+
 class MotionPetitionOfConcern(NIABaseModel):
     """A Petition of Concern lodged against a motion, from
     ``GetMotionPetitionOfConcern`` — an NI-specific cross-community veto mechanism.

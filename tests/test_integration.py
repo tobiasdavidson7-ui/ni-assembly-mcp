@@ -14,6 +14,7 @@ from ni_assembly_mcp.ingest.http import PoliteFetcher
 from ni_assembly_mcp.ingest.people_map import load_person_map
 from ni_assembly_mcp.ingest.twfy import parse_scrape_file
 from ni_assembly_mcp.niassembly_client import niassembly_get
+from ni_assembly_mcp.tools.hansard import get_hansard_reports, search_debate_titles
 from ni_assembly_mcp.tools.member_detail import (
     get_detailed_member_information,
     get_registered_interests,
@@ -125,6 +126,32 @@ async def test_get_motion_context_live():
     result = await get_motion_context(document_id=409547)
     assert result["motion"]["document_id"] == 409547
     assert result["bill"]["reference_number"].startswith("NIA Bill")
+
+
+async def test_get_hansard_reports_live():
+    rows = await get_hansard_reports(date_from="2026-01-01")
+    assert rows and all(r["plenary_date"] >= "2026-01-01" for r in rows)
+    assert rows[0]["plenary_date"] >= rows[-1]["plenary_date"]  # newest first
+
+
+async def test_search_debate_titles_live(test_settings):
+    """Build a one-day index, then drive the tool (settings patched by conftest)."""
+    fetcher = PoliteFetcher(test_settings)
+    people = await load_person_map(fetcher, test_settings)
+    xml_bytes = await fetcher.get_bytes(f"{test_settings.twfy_base_url}/ni2026-06-30.xml")
+    conn = open_index(test_settings.index_db_path)
+    from ni_assembly_mcp.index_db import upsert_contributions
+
+    upsert_contributions(conn, list(parse_scrape_file(xml_bytes, "ni2026-06-30.xml", people)))
+    conn.commit()
+    conn.close()
+
+    browse = await search_debate_titles("", date_from="2026-06-01", date_to="2026-07-01")
+    assert isinstance(browse, list) and browse
+    term = next(r["major_heading"] for r in browse if r["major_heading"]).split()[0]
+    result = await search_debate_titles(term, date_from="2026-06-01", date_to="2026-07-01")
+    assert isinstance(result, list) and result
+    assert all(r["debate_date"] == "2026-06-30" for r in result)
 
 
 async def test_hansard_index_one_real_scrape_file(test_settings):

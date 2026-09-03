@@ -27,6 +27,9 @@ EXPECTED_TOOLS = {
     "get_divisions",
     "get_motion_context",
     "get_no_day_named_motions",
+    # Phase 6b — Hansard
+    "get_hansard_reports",
+    "search_debate_titles",
 }
 
 
