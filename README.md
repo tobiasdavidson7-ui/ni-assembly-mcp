@@ -127,7 +127,29 @@ docker compose up -d
 
 Point HTTP-capable MCP clients at `http://<host>:8000/mcp/`. Override the
 published port with `NI_ASSEMBLY_MCP_PORT` and the refresh cadence with
-`NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS` (default 86400).
+`NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS` (default 86400). `GET /healthz`
+returns `{"status": "ok"}` for uptime checks (never rate limited).
+
+### Rate limiting
+
+`serve --http` is a public surface — the raw MCP transport **and** (from Phase
+10) the forms UI — so one in-process middleware sits in front of everything on
+the app: a per-IP fixed-window limit plus a global circuit breaker that returns
+`503` for a short cooldown if total traffic spikes far past normal. All limits
+are env-configurable; the defaults keep an abusive client from running up
+hosting cost without getting in the way of a normal MCP session.
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `NI_ASSEMBLY_MCP_HTTP_RATE_LIMIT_ENABLED` | `true` | master switch for the middleware |
+| `NI_ASSEMBLY_MCP_HTTP_RATE_LIMIT_PER_MINUTE` | `120` | requests per client IP per 60 s → `429` |
+| `NI_ASSEMBLY_MCP_HTTP_GLOBAL_RATE_LIMIT_PER_MINUTE` | `1200` | all IPs combined; exceeding it trips the breaker |
+| `NI_ASSEMBLY_MCP_HTTP_GLOBAL_COOLDOWN_SECONDS` | `30` | how long every request gets `503` once the breaker trips |
+| `NI_ASSEMBLY_MCP_HTTP_TRUST_PROXY_HEADERS` | `false` | behind a load balancer, set `true` so the per-IP limit keys on `X-Forwarded-For` and not the proxy |
+| `NI_ASSEMBLY_MCP_HTTP_FORWARDED_ALLOW_IPS` | `*` | which upstream hops may set forwarding headers (only read when the above is `true`) |
+
+State is per-process. A single container (the zero-cost target) is fine as-is;
+running several replicas would need a shared store and is not supported yet.
 
 ## Building the search index
 

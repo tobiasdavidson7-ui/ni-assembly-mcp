@@ -60,5 +60,18 @@ class Settings(BaseSettings):
 
     user_agent: str = "ni-assembly-mcp (+https://github.com/tobias-davidson/ni-assembly-mcp)"
 
+    # --- public HTTP hosting (Phase 10) ---
+    # `serve --http` is a public surface: forms UI + the raw streamable-HTTP MCP
+    # transport. One ASGI middleware rate-limits both (see ratelimit.py).
+    http_rate_limit_enabled: bool = True
+    http_rate_limit_per_minute: int = 120  # per client IP, rolling 60s window
+    http_global_rate_limit_per_minute: int = 1200  # all IPs combined; trips the breaker
+    http_global_cooldown_seconds: int = 30  # 503 for this long once the breaker trips
+    # Behind a load balancer (Render/Fly/Railway/nginx), set this so the per-IP
+    # limit keys on the real client, not the proxy. Leave off if the app is the
+    # edge — X-Forwarded-For would then be spoofable.
+    http_trust_proxy_headers: bool = False
+    http_forwarded_allow_ips: str = "*"  # only consulted when trust_proxy_headers is on
+
 
 settings = Settings()

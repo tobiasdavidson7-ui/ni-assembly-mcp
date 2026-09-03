@@ -23,6 +23,11 @@ dependencies = [
     # stack, so the streamable-HTTP transport needs no separate extra (unlike
     # parliament-mcp on mcp 1.x). stdio is still the default transport (PLAN.md 5b).
     "mcp[cli]>=2.1.0",
+    # Phase 10 makes the HTTP surface a first-class public deployment (forms UI +
+    # rate-limiting middleware + the "connect your own LLM" page), so starlette and
+    # uvicorn are pinned directly rather than relied on transitively via mcp[cli].
+    "starlette>=1.6.0",
+    "uvicorn>=0.32.0",
 ]
 
 [dependency-groups]

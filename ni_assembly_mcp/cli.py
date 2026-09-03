@@ -37,13 +37,14 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     if args.command == "serve":
-        from ni_assembly_mcp.server import build_server
-
-        server = build_server()
         if args.http:
-            server.run(transport="streamable-http", host=args.host, port=args.port)
+            from ni_assembly_mcp.http_app import serve_http
+
+            serve_http(host=args.host, port=args.port, log_level=args.log_level)
         else:
-            server.run(transport="stdio")
+            from ni_assembly_mcp.server import build_server
+
+            build_server().run(transport="stdio")
     elif args.command == "index":
         from ni_assembly_mcp.ingest.runner import run_index_cli
 

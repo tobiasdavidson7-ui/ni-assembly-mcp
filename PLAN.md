@@ -357,6 +357,58 @@ index-backed path — stemmed/BM25 ranking **and** answer-text search, which the
 - Phase 4b (`niassembly_get_answer_html`) drops further in priority — `AnswerPlainText` inline is
   enough for the index and for `get_question_details`.
 
+### Phase 10 — public forms UI + "connect your own LLM" page + rate limiting
+
+Makes `serve --http` a *public* deployment, not just a dev/host convenience: a no-LLM HTML forms
+frontend over the existing tools, a static page for pointing your own MCP client at the hosted
+endpoint, and rate limiting so abuse/traffic can't run up hosting cost. Provider-agnostic —
+everything stays in the Phase 8 Docker image (one container, no new service), deployable to any
+host later without rework. Three commits; pause for review after each.
+
+**Commit 1 — rate-limit + circuit-breaker middleware + HTTP-app assembly** ✅ done 2026-09-03
+- `ratelimit.py` — pure-stdlib ASGI `RateLimitMiddleware` + `RateLimiter` (clock injected, no
+  lock: every counter mutation runs synchronously between `await` points on the one event loop).
+  Per-IP fixed 60 s window → `429` + `Retry-After`; global window → trips a breaker (`503` +
+  `Retry-After` for a cooldown, counters reset so recovery is cooldown-driven). `/healthz` exempt.
+  Client IP from `scope["client"]` (uvicorn `--proxy-headers` puts the real one there).
+  In-process state — single container only; horizontal scaling would need a shared store (noted,
+  out of scope).
+- `http_app.py` — `build_http_app(server, *, host, config)`: `build_server()` → register custom
+  routes (`/healthz` now; forms/connect in commits 2–3) → `server.streamable_http_app(host=)` →
+  wrap in `RateLimitMiddleware`. `serve_http(host, port, log_level)` runs it under uvicorn with
+  `proxy_headers` / `forwarded_allow_ips` from settings. The middleware wraps the **combined**
+  app, so it is provably in front of `/mcp` *and* the Phase 10 routes (test:
+  `test_rate_limit_sits_in_front_of_the_mcp_transport`).
+- `cli.py` — `serve --http` now calls `serve_http(...)` instead of `MCPServer.run("streamable-http")`
+  (stdio path unchanged).
+- `settings.py` — `http_rate_limit_enabled` / `http_rate_limit_per_minute` (120) /
+  `http_global_rate_limit_per_minute` (1200) / `http_global_cooldown_seconds` (30) /
+  `http_trust_proxy_headers` (false) / `http_forwarded_allow_ips` (`*`).
+- `pyproject.toml` — `starlette` / `uvicorn` promoted to explicit direct deps (were transitive via
+  `mcp[cli]`; the public HTTP surface shouldn't ride an indirect pin).
+- README "Hosting over HTTP" gains a Rate-limiting subsection + env table + `/healthz` note.
+- `tests/test_ratelimit.py` — 9 tests: limiter unit (per-IP limit/reset/independence, global
+  trip+recovery), middleware (`429` + header, `/healthz` exempt, disabled flag), `build_http_app`
+  wiring (`/healthz` 200, burst to `/mcp` → `429`). 190 pass, no network.
+
+**Commit 2 — forms backend: routes + tool dispatch + HTML rendering** (not started)
+- `ni_assembly_mcp/forms/` — declarative form specs (fields, target tool fn, arg mapping, hard
+  `max_results` cap), Starlette routes (`GET /`, `GET|POST /forms/<name>`) calling the tool
+  functions directly (no LLM), Jinja2 templates (autoescape — public input), result → table/list
+  renderer. Base layout footer carries the TWFY + NI Assembly Official-Report reuse attribution
+  (README §Licensing / NOTICE) since it's now public-facing. `jinja2` dep added here.
+- Dispatch is a fixed whitelist of read/bounded tools — the `index … --full` builder is a CLI
+  subcommand, never a tool, unreachable from HTTP by construction; a test pins that.
+- Routes plug into `build_http_app` so commit 1's middleware covers them.
+
+**Commit 3 — "connect your own LLM" page + styling + Docker/README wiring** (not started)
+- `GET /connect` from `NI_ASSEMBLY_MCP_PUBLIC_URL` (placeholder default): read-only/no-account/
+  no-cost note, "this server never handles your LLM calls or API key", the `/mcp/` URL, and two
+  copy-paste config snippets (native `url` form + `mcp-remote` command form) mirroring
+  `claude_config.json`. `claude_config.http.json` committed. Shared CSS, footer finalised.
+- `docker-compose.yaml` gains the Phase 10 env vars (with `NI_ASSEMBLY_MCP_TRUST_PROXY_HEADERS=1`
+  commented for PaaS); no new service. README "Public forms UI" + connect sections.
+
 ### Dependency graph
 ```
 Phase 0 ─► Phase 1 ─► Phase 2 ─► Phase 3
