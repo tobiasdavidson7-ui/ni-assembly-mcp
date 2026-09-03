@@ -20,11 +20,13 @@ Data sources (retrieved at runtime; not redistributed by this project):
   * Northern Ireland Assembly Open Data API — data.niassembly.gov.uk
     Subject to the Assembly's own copyright / reuse terms.
 
-  * (Phase 6b, planned) TheyWorkForYou / mySociety — theyworkforyou.com,
+  * TheyWorkForYou / mySociety — theyworkforyou.com,
     github.com/mysociety/parlparse
-    Member and speaker identity data under CC BY-SA 2.5; debate text under the
-    Open Parliament Licence. Attribution: "Data service provided by
-    TheyWorkForYou" (https://www.theyworkforyou.com). See PLAN.md section 5d.
+    Source for the local Hansard index (built offline by
+    `ni-assembly-mcp index hansard`, never redistributed). Member and speaker
+    identity data under CC BY-SA 2.5; debate text under the Open Parliament
+    Licence. Attribution: "Data service provided by TheyWorkForYou"
+    (https://www.theyworkforyou.com). See PLAN.md section 5d.
 
 This project is not affiliated with the Northern Ireland Assembly, i.AI, or
 mySociety / TheyWorkForYou.

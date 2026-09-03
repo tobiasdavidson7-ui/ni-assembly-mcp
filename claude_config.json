@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ni-assembly": {
+      "command": "ni-assembly-mcp",
+      "args": ["serve"]
+    }
+  }
+}

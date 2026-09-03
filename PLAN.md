@@ -268,11 +268,23 @@ proves insufficient, re-adds Azure OpenAI + a container.
   diary-filtered wrapper earned nothing. Committee capability gap documented in the
   README ("Committee data — what is *not* available").
 
-### Phase 8 — Packaging
-- `claude_config.json` (stdio command form — `ni-assembly-mcp serve`, no `mcp-remote` proxy), README (incl. §5d licence/attribution, the §5f capability-gap note, and the §6 tool-description rewrites), `docker-compose.yaml` (only needed for the `http` extra or persistent volumes; the default stdio server needs no compose), deploy target.
-- Persistent paths documented + volume-mounted: `HISHEL_CACHE_DIR` (§6.5 pt 3) and `INDEX_DB_PATH` (§6.5 pt 2).
-- Index bootstrap + refresh: README covers `ni-assembly-mcp index {hansard,questions}` for first build; ship an OS-scheduler snippet (Task Scheduler / launchd / systemd timer) for local always-on, and a CronJob/cron-container for the `http` extra (§6.5 pt 2).
-- `NOTICE` file + retained `LICENSE` (§5d).
+### Phase 8 — Packaging — **shipped 2026-09-03**
+- `claude_config.json` (stdio command form — `ni-assembly-mcp serve`, no `mcp-remote` proxy),
+  README (Installing / Configuring an MCP client / Persistent paths / Hosting over HTTP / refresh
+  scheduling sections; §5d licence/attribution and §5f capability-gap note already present),
+  `Dockerfile` + `.dockerignore` + `docker-compose.yaml`.
+- `docker-compose.yaml`: `mcp-server` (streamable HTTP :8000) + `index-refresh` sidecar on shared
+  `index` / `http-cache` named volumes. **The sidecar runs `index hansard` incremental only —
+  never `--full` on a timer** (TWFY politeness, §6.5 pt 4); one-time full build is
+  `docker compose run --rm mcp-server index hansard --full`. Volumes mount at `/data`; the image
+  sets `NI_ASSEMBLY_MCP_INDEX_DB_PATH` / `NI_ASSEMBLY_MCP_HISHEL_CACHE_DIR` under it.
+- Persistent paths documented (README "Persistent paths" table): `NI_ASSEMBLY_MCP_HISHEL_CACHE_DIR`
+  (§6.5 pt 3) and `NI_ASSEMBLY_MCP_INDEX_DB_PATH` (§6.5 pt 2), both XDG-defaulted, volume-mounted in Docker.
+- Index refresh scheduling: README covers the one-time `--full` build + incremental refresh; ships
+  systemd **user** units in `deploy/systemd/` (oneshot service + daily timer) and the Docker
+  `index-refresh` sidecar; Windows `schtasks` / macOS `launchd` given as one-liners.
+- `NOTICE` updated (TWFY entry no longer "planned"); `LICENSE` retained (§5d). `questions` index
+  bootstrap still deferred with the rest of the questions-FTS5 work.
 
 ### Dependency graph
 ```

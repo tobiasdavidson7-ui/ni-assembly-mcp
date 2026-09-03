@@ -1,0 +1,20 @@
+# Incremental Hansard index refresh. Install as a *user* unit:
+#
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/systemd/ni-assembly-mcp-index.* ~/.config/systemd/user/
+#   loginctl enable-linger "$USER"          # let the timer run without an active login
+#   systemctl --user enable --now ni-assembly-mcp-index.timer
+#   systemctl --user start ni-assembly-mcp-index.service   # optional: run once now
+#
+# Adjust ExecStart if `ni-assembly-mcp` is not on PATH for the systemd user manager.
+[Unit]
+Description=Refresh the NI Assembly Hansard search index (incremental)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Never --full here: a daily full TWFY re-walk is wasteful (PLAN.md §6.5 pt 4).
+ExecStart=%h/.local/bin/ni-assembly-mcp index hansard
+# Uncomment to override the index location (default: ~/.local/share/ni-assembly-mcp/index.db):
+# Environment=NI_ASSEMBLY_MCP_INDEX_DB_PATH=%h/.local/share/ni-assembly-mcp/index.db

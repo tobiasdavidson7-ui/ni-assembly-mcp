@@ -1,0 +1,55 @@
+# Deployment for the streamable-HTTP transport plus a daily Hansard index refresh.
+#
+# The default local setup is stdio and needs none of this -- point your MCP client
+# straight at `ni-assembly-mcp serve` (see README "Configuring an MCP client").
+# Use this compose file when you want to *host* the server for other clients.
+#
+# First-time bootstrap (builds the full 1998->present index once) -- run it via
+# `mcp-server`, whose entrypoint is the `ni-assembly-mcp` binary:
+#   docker compose run --rm mcp-server index hansard --full
+# Then:
+#   docker compose up -d
+#
+# Both services share the `index` and `http-cache` volumes. SQLite WAL mode lets
+# the read-only server and the writing refresh job coexist on one index.db.
+
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ni-assembly-mcp:latest
+    container_name: ni-assembly-mcp
+    command: ["serve", "--http", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "${NI_ASSEMBLY_MCP_PORT:-8000}:8000"
+    volumes:
+      - index:/data/index
+      - http-cache:/data/http-cache
+    restart: unless-stopped
+
+  index-refresh:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ni-assembly-mcp:latest
+    container_name: ni-assembly-mcp-index-refresh
+    # INCREMENTAL refresh only -- never --full on a timer. A full TWFY history
+    # re-walk every day is wasteful and hammers theyworkforyou.com, defeating the
+    # indexer's politeness limits (PLAN.md §6.5 pt 4). An empty index still
+    # back-fills fully on the first pass; later passes fetch only changed files.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          ni-assembly-mcp index hansard || echo "index refresh failed; retrying next cycle"
+          sleep "${NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS:-86400}"
+        done
+    volumes:
+      - index:/data/index
+      - http-cache:/data/http-cache
+    restart: unless-stopped
+
+volumes:
+  index:
+  http-cache:

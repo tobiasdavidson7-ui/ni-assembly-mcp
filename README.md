@@ -7,10 +7,10 @@ Ported from [`i-dot-ai/parliament-mcp`](https://github.com/i-dot-ai/parliament-m
 (MIT, © 2025 i.AI). See [`PLAN.md`](PLAN.md) for the porting design and phase plan,
 and [`NOTICE`](NOTICE) for attribution.
 
-> Status: **early development.** Phases 0–7 implemented. Still deferred: the
-> questions FTS5 index + index-backed `search_parliamentary_questions` path,
-> the 4b full written-answer fetch, and packaging (Phase 8) — see
-> [`PLAN.md`](PLAN.md) §4.
+> Status: **early development.** Phases 0–8 implemented (all core tools, the
+> Hansard index, and packaging). Still deferred: the questions FTS5 index +
+> index-backed `search_parliamentary_questions` path, and the 4b full
+> written-answer fetch — see [`PLAN.md`](PLAN.md) §4.
 
 This project is **not affiliated with the Northern Ireland Assembly** or with
 mySociety / TheyWorkForYou.
@@ -53,12 +53,77 @@ business for a meeting; committee *scheduling* comes from `get_business_diary`
 with membership/chairs beyond what `get_detailed_member_information` and
 `list_ministerial_roles` derive from the roles data.
 
+## Installing
+
+```bash
+pip install .            # or: pipx install .   /   uv tool install .
+```
+
+This puts `ni-assembly-mcp` on your PATH. Python 3.11+; the Hansard index needs a
+SQLite build with FTS5 (standard on CPython for Windows/macOS and most Linux
+distros).
+
 ## Running the server
 
 ```bash
-ni-assembly-mcp serve            # stdio (default)
-ni-assembly-mcp serve --http --port 8000   # streamable HTTP
+ni-assembly-mcp serve                       # stdio (default)
+ni-assembly-mcp serve --http --port 8000    # streamable HTTP
 ```
+
+## Configuring an MCP client
+
+The default transport is **stdio** — the client launches the server as a
+subprocess, so nothing needs to be running in advance. [`claude_config.json`](claude_config.json):
+
+```json
+{
+  "mcpServers": {
+    "ni-assembly": {
+      "command": "ni-assembly-mcp",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+- **Claude Desktop** — merge that into `claude_desktop_config.json`
+  (`%APPDATA%\Claude\` on Windows, `~/Library/Application Support/Claude/` on macOS).
+- **Claude Code** — `claude mcp add ni-assembly -- ni-assembly-mcp serve`.
+
+If `ni-assembly-mcp` is not on the client's PATH, use an absolute path (e.g. the
+`Scripts/`/`bin/` entry of the environment you installed it into). No
+`mcp-remote` proxy is needed for stdio.
+
+## Persistent paths
+
+Two directories hold state that should survive restarts and upgrades. Both
+default to XDG locations and are overridable by environment variable:
+
+| Env var | Default | Holds |
+|---|---|---|
+| `NI_ASSEMBLY_MCP_INDEX_DB_PATH` | `~/.local/share/ni-assembly-mcp/index.db` | the Hansard FTS5 index (see below) |
+| `NI_ASSEMBLY_MCP_HISHEL_CACHE_DIR` | `~/.cache/ni-assembly-mcp/http` | the on-disk HTTP cache (1-day TTL) for `data.niassembly.gov.uk` responses |
+
+(`XDG_DATA_HOME` / `XDG_CACHE_HOME` are honoured for the base directory.) In
+Docker these live under `/data` and are backed by named volumes — see below.
+
+## Hosting over HTTP (Docker)
+
+The default local setup is stdio and needs no container. Use
+[`docker-compose.yaml`](docker-compose.yaml) when you want to *host* the server
+for other clients. It runs two services on shared `index` / `http-cache`
+volumes: `mcp-server` (streamable HTTP on port 8000) and `index-refresh` (a
+daily **incremental** Hansard refresh — never `--full`, per the indexer
+politeness limits).
+
+```bash
+docker compose run --rm mcp-server index hansard --full   # one-time full build
+docker compose up -d
+```
+
+Point HTTP-capable MCP clients at `http://<host>:8000/mcp/`. Override the
+published port with `NI_ASSEMBLY_MCP_PORT` and the refresh cadence with
+`NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS` (default 86400).
 
 ## Building the Hansard index
 
@@ -74,12 +139,36 @@ ni-assembly-mcp index status           # row counts + last refresh
 
 Hansard is ingested from [TheyWorkForYou's bulk XML](https://www.theyworkforyou.com/pwdata/scrapedxml/ni/)
 (no API key), with speaker→`PersonId` mapping from mySociety's `parlparse`, plus a
-short freshness top-up from the NI data API. The index lives at `INDEX_DB_PATH`
-(default: the XDG data dir); point it somewhere persistent and back it with a
-volume in Docker.
+short freshness top-up from the NI data API. The index lives at
+`NI_ASSEMBLY_MCP_INDEX_DB_PATH` (see [Persistent paths](#persistent-paths)).
+
+The incremental refresh only fetches TWFY scrape files changed since the last
+run, so it is cheap — schedule it, don't re-run `--full`.
 
 **Do not redistribute a built `index.db`** — it embeds TWFY-derived identifiers
 that are CC BY-SA 2.5 (ShareAlike). Distribute the builder only.
+
+### Scheduling the refresh
+
+- **Docker:** the `index-refresh` service in `docker-compose.yaml` already does this.
+- **Linux (always-on host):** the user units in [`deploy/systemd/`](deploy/systemd/) —
+  a `oneshot` service plus a `daily` timer:
+
+  ```bash
+  mkdir -p ~/.config/systemd/user
+  cp deploy/systemd/ni-assembly-mcp-index.* ~/.config/systemd/user/
+  loginctl enable-linger "$USER"
+  systemctl --user enable --now ni-assembly-mcp-index.timer
+  ```
+
+- **Windows:** a daily Task Scheduler entry —
+
+  ```powershell
+  schtasks /Create /TN "ni-assembly-mcp index" /SC DAILY /ST 04:00 ^
+    /TR "ni-assembly-mcp index hansard"
+  ```
+
+- **macOS:** a `launchd` `StartCalendarInterval` agent running the same command.
 
 ## Development
 

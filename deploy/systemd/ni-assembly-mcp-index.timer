@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily NI Assembly Hansard index refresh
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target
