@@ -13,6 +13,8 @@
 # Both services share the `index` and `http-cache` volumes. SQLite WAL mode lets
 # the read-only server and the writing refresh job coexist on one index.db.
 
+name: ni-assembly-mcp
+
 services:
   mcp-server:
     build:
