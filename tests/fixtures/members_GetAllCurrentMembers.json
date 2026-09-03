@@ -1,0 +1,26 @@
+{
+  "AllMembersList": {
+    "Member": [
+      {
+        "PersonId": "90",
+        "MemberFirstName": "Edwin",
+        "MemberLastName": "Poots",
+        "MemberName": "Poots, Edwin",
+        "PartyName": "Democratic Unionist Party",
+        "ConstituencyName": "Lagan Valley",
+        "ConstituencyId": "10",
+        "MemberPrefix": "Mr"
+      },
+      {
+        "PersonId": "80",
+        "MemberFirstName": "Conor",
+        "MemberLastName": "Murphy",
+        "MemberName": "Murphy, Conor",
+        "PartyName": "Sinn Fein",
+        "ConstituencyName": "Newry and Armagh",
+        "ConstituencyId": "12",
+        "MemberPrefix": ""
+      }
+    ]
+  }
+}

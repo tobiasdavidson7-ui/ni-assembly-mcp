@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from ni_assembly_mcp.settings import Settings
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def load_fixture():
+    def _load(name: str):
+        return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
+    return _load
+
+
+@pytest.fixture
+def test_settings(tmp_path) -> Settings:
+    """Settings with cache + index redirected into a tmp dir, faster limits."""
+    return Settings(
+        base_url="https://data.niassembly.gov.uk",
+        http_max_rate_per_second=1000.0,
+        http_max_concurrency=8,
+        http_max_retries=2,
+        http_retry_initial_wait=0.01,
+        http_retry_max_wait=0.05,
+        hishel_cache_dir=tmp_path / "http-cache",
+        index_db_path=tmp_path / "index.db",
+    )
+
+
+@pytest.fixture(autouse=True)
+async def _reset_client():
+    from ni_assembly_mcp.http_client import reset_http_client
+
+    await reset_http_client()
+    yield
+    await reset_http_client()
