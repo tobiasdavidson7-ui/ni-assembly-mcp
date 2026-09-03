@@ -1,0 +1,64 @@
+[project]
+name = "ni-assembly-mcp"
+version = "0.0.1"
+description = "MCP server for the Northern Ireland Assembly Open Data API (data.niassembly.gov.uk)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Tobias Davidson" },
+]
+dependencies = [
+    "httpx>=0.28.1",
+    # hishel 1.x rewrote the API (AsyncCacheProxy / storage classes); parliament-mcp
+    # and http_client.py use the 0.1.x AsyncCacheClient/AsyncFileStorage. Migrating to
+    # 1.x is tracked as its own task -- see http_client.py.
+    "hishel>=0.1.2,<0.2",
+    "aiolimiter>=1.2.1",
+    "tenacity>=9.0.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.7.0",
+    "python-dateutil>=2.9.0",
+]
+
+[project.optional-dependencies]
+# Hosted HTTP transport (default transport is stdio; see PLAN.md 5b).
+http = [
+    "mcp[cli]>=1.26.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "respx>=0.22.0",
+    "ruff>=0.9.0",
+]
+
+[project.scripts]
+ni-assembly-mcp = "ni_assembly_mcp.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ni_assembly_mcp"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+norecursedirs = ["reference", ".venv", ".git"]
+markers = [
+    "integration: hits the live data.niassembly.gov.uk API (deselected by default)",
+]
+addopts = "-m 'not integration'"

@@ -1,0 +1,30 @@
+ni-assembly-mcp
+===============
+
+This project is a port of parliament-mcp to the Northern Ireland Assembly
+Open Data API.
+
+Original work:
+    parliament-mcp
+    https://github.com/i-dot-ai/parliament-mcp
+    Copyright (c) 2025 i.AI
+    MIT License
+    Ported from upstream commit 2db3fe4.
+
+A read-only copy of the upstream project at that commit is vendored under
+reference/parliament-mcp/ for porting reference and is not part of the
+distributed package.
+
+Data sources (retrieved at runtime; not redistributed by this project):
+
+  * Northern Ireland Assembly Open Data API — data.niassembly.gov.uk
+    Subject to the Assembly's own copyright / reuse terms.
+
+  * (Phase 6b, planned) TheyWorkForYou / mySociety — theyworkforyou.com,
+    github.com/mysociety/parlparse
+    Member and speaker identity data under CC BY-SA 2.5; debate text under the
+    Open Parliament Licence. Attribution: "Data service provided by
+    TheyWorkForYou" (https://www.theyworkforyou.com). See PLAN.md section 5d.
+
+This project is not affiliated with the Northern Ireland Assembly, i.AI, or
+mySociety / TheyWorkForYou.
