@@ -8,6 +8,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from ni_assembly_mcp.tools.member_detail import (
+    get_detailed_member_information,
+    get_registered_interests,
+    get_state_of_the_parties,
+    list_ministerial_roles,
+)
 from ni_assembly_mcp.tools.members import search_members
 from ni_assembly_mcp.tools.reference import (
     get_constituencies,
@@ -27,6 +33,11 @@ ALL_TOOLS: list[Callable] = [
     list_all_committees,
     get_constituencies,
     search_members,
+    # Phase 3 — member detail, roles, register, party standing
+    get_detailed_member_information,
+    get_registered_interests,
+    list_ministerial_roles,
+    get_state_of_the_parties,
 ]
 
 __all__ = ["ALL_TOOLS"]

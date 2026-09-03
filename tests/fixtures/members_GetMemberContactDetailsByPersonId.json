@@ -1,0 +1,31 @@
+{
+  "AllMembersList": {
+    "Member": [
+      {
+        "AddressId": "2926",
+        "PersonId": "90",
+        "AddressType": "NIA Constituency Address",
+        "Address1": "127-145 Sandy Row",
+        "Townland": "Malone Lower",
+        "TownCity": "Belfast",
+        "Postcode": "BT12 5ET",
+        "TelephoneNumber": "02890 135316",
+        "EmaiAddress": "edwin.poots@co.niassembly.gov.uk",
+        "Latitude": "54.5896920185230030",
+        "Longitude": "-5.9367700414579998"
+      },
+      {
+        "AddressId": "2916",
+        "PersonId": "90",
+        "AddressType": "NIA Office Address",
+        "RoomNumber": "TBC",
+        "Address1": "Parliament Buildings",
+        "Townland": "Ballymiscaw",
+        "Ward": "Stormont",
+        "TownCity": "Belfast",
+        "Postcode": "BT4 3XX",
+        "EmaiAddress": "edwin.poots@mla.niassembly.gov.uk"
+      }
+    ]
+  }
+}

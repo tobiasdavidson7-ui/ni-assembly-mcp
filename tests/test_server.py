@@ -1,10 +1,11 @@
-"""Contract test: the MCP server exposes the Phase 2 tools with usable schemas."""
+"""Contract test: the MCP server exposes the expected tools with usable schemas."""
 
 from __future__ import annotations
 
 from ni_assembly_mcp.server import build_server
 
 EXPECTED_TOOLS = {
+    # Phase 2 — reference & list domains
     "get_departments",
     "get_parties",
     "list_all_party_groups",
@@ -12,6 +13,11 @@ EXPECTED_TOOLS = {
     "list_all_committees",
     "get_constituencies",
     "search_members",
+    # Phase 3 — member detail, roles, register, party standing
+    "get_detailed_member_information",
+    "get_registered_interests",
+    "list_ministerial_roles",
+    "get_state_of_the_parties",
 }
 
 

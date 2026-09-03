@@ -1,0 +1,30 @@
+{
+  "AllRegisteredInterests": {
+    "RegisteredInterest": [
+      {
+        "PersonId": "5797",
+        "MemberName": "Dr Steve Aiken OBE",
+        "RegisterCategoryId": "45",
+        "RegisterCategory": "Employment and Earnings",
+        "RegisterEntry": "Talk on the Belfast Agreement. Remuneration: an honorarium payment of US$2,500.",
+        "RegisterEntryStartDate": "2023-04-19T00:00:00+01:00"
+      },
+      {
+        "PersonId": "5797",
+        "MemberName": "Dr Steve Aiken OBE",
+        "RegisterCategoryId": "46",
+        "RegisterCategory": "Donations and other support",
+        "RegisterEntry": "Seamus Reid Solicitors: provided a donation of GBP200, received on 7 April 2022.",
+        "RegisterEntryStartDate": "2022-06-07T00:00:00+01:00"
+      },
+      {
+        "PersonId": "90",
+        "MemberName": "Mr Edwin Poots",
+        "RegisterCategoryId": "48",
+        "RegisterCategory": "Land and Property",
+        "RegisterEntry": "Farmland in Lagan Valley.",
+        "RegisterEntryStartDate": "2022-05-13T00:00:00+01:00"
+      }
+    ]
+  }
+}

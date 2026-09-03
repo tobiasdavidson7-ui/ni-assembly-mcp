@@ -127,3 +127,57 @@ class Member(NIABaseModel):
     constituency_name: str | None = Field(None, alias="ConstituencyName")
     constituency_id: int | None = Field(None, alias="ConstituencyId")
     member_image_url: str | None = Field(None, alias="MemberImgUrl")
+
+
+# --- Member detail, roles & register (PLAN.md Phase 3 / §1a, §1e) -----------------
+
+
+class MemberRole(NIABaseModel):
+    """A single affiliation/role row from ``GetMemberRolesByPersonId`` (full
+    history, carries ``AffiliationEnd``) or ``GetAllMemberRoles`` (current roles
+    only — no end date). ``RoleType`` is the coarse bucket ("Ministerial Role",
+    "Committee Role (incl Assembly Commission)", "All Party Group Role", …)."""
+
+    person_id: int | None = Field(None, alias="PersonId")
+    affiliation_id: int | None = Field(None, alias="AffiliationId")
+    member_full_display_name: str | None = Field(None, alias="MemberFullDisplayName")
+    role_type: str | None = Field(None, alias="RoleType")
+    role: str | None = Field(None, alias="Role")
+    organisation_id: int | None = Field(None, alias="OrganisationId")
+    organisation: str | None = Field(None, alias="Organisation")
+    affiliation_title: str | None = Field(None, alias="AffiliationTitle")
+    affiliation_start: NIADateTime | None = Field(None, alias="AffiliationStart")
+    affiliation_end: NIADateTime | None = Field(None, alias="AffiliationEnd")
+
+
+class MemberContact(NIABaseModel):
+    """One address row from ``GetMemberContactDetailsByPersonId`` — a member has
+    a constituency address and an office address, each with its own contact
+    details. Note the API's ``EmaiAddress`` key typo, aliased here to ``email``."""
+
+    address_id: int | None = Field(None, alias="AddressId")
+    person_id: int | None = Field(None, alias="PersonId")
+    address_type: str | None = Field(None, alias="AddressType")
+    room_number: str | None = Field(None, alias="RoomNumber")
+    address1: str | None = Field(None, alias="Address1")
+    townland: str | None = Field(None, alias="Townland")
+    ward: str | None = Field(None, alias="Ward")
+    town_city: str | None = Field(None, alias="TownCity")
+    postcode: str | None = Field(None, alias="Postcode")
+    telephone_number: str | None = Field(None, alias="TelephoneNumber")
+    email: str | None = Field(None, alias="EmaiAddress")
+    latitude: float | None = Field(None, alias="Latitude")
+    longitude: float | None = Field(None, alias="Longitude")
+
+
+class RegisteredInterest(NIABaseModel):
+    """A row from ``register.asmx/GetAllRegisteredInterests`` — a declared
+    financial interest (employment, donations, gifts, property, …). ``RegisterEntry``
+    is free text; ``RegisterCategory`` groups them."""
+
+    person_id: int | None = Field(None, alias="PersonId")
+    member_name: str | None = Field(None, alias="MemberName")
+    register_category_id: int | None = Field(None, alias="RegisterCategoryId")
+    register_category: str | None = Field(None, alias="RegisterCategory")
+    register_entry: str | None = Field(None, alias="RegisterEntry")
+    register_entry_start_date: NIADateTime | None = Field(None, alias="RegisterEntryStartDate")

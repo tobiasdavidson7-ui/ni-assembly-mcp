@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import json
 import logging
@@ -12,6 +13,23 @@ from typing import Any, TypeVar
 logger = logging.getLogger(__name__)
 
 _R = TypeVar("_R")
+
+
+async def gather_sections(sections: dict[str, Awaitable]) -> dict[str, Any]:
+    """Run named awaitables concurrently, returning only the ones that succeed.
+
+    Kept from parliament-mcp (``mcp_server/utils.py``). A failed section is logged
+    and dropped rather than sinking the whole result, so one flaky upstream
+    endpoint can't take out an entire composite tool call.
+    """
+    results = await asyncio.gather(*sections.values(), return_exceptions=True)
+    output: dict[str, Any] = {}
+    for name, result in zip(sections, results, strict=True):
+        if isinstance(result, BaseException):
+            logger.warning("Section %r failed: %s", name, result)
+        else:
+            output[name] = result
+    return output
 
 
 def log_tool_call(func: Callable[..., Awaitable[_R]]) -> Callable[..., Awaitable[_R]]:

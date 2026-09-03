@@ -1,0 +1,50 @@
+{
+  "AllMembersRoles": {
+    "Role": [
+      {
+        "PersonId": "5800",
+        "AffiliationId": "21639",
+        "MemberFullDisplayName": "Dr Caoimhe Archibald",
+        "RoleType": "Ministerial Role",
+        "Role": "Minister",
+        "OrganisationId": "79",
+        "Organisation": "Department of Finance",
+        "AffiliationStart": "2025-02-03T00:00:00+00:00",
+        "AffiliationTitle": "Minister of Finance"
+      },
+      {
+        "PersonId": "5785",
+        "AffiliationId": "22653",
+        "MemberFullDisplayName": "Ms Joanne Bunting",
+        "RoleType": "Ministerial Role",
+        "Role": "junior Minister",
+        "OrganisationId": "86",
+        "Organisation": "The Executive Office",
+        "AffiliationStart": "2025-09-15T00:00:00+01:00",
+        "AffiliationTitle": "junior Minister"
+      },
+      {
+        "PersonId": "268",
+        "AffiliationId": "19806",
+        "MemberFullDisplayName": "Mr Paul Givan",
+        "RoleType": "Ministerial Role",
+        "Role": "Minister",
+        "OrganisationId": "78",
+        "Organisation": "Department of Education",
+        "AffiliationStart": "2024-02-03T00:00:00+00:00",
+        "AffiliationTitle": "Minister of Education"
+      },
+      {
+        "PersonId": "5797",
+        "AffiliationId": "22923",
+        "MemberFullDisplayName": "Dr Steve Aiken OBE",
+        "RoleType": "All Party Group Role",
+        "Role": "Assembly Party Group Secretary",
+        "OrganisationId": "2458",
+        "Organisation": "All-Party Group on Artificial Intelligence",
+        "AffiliationStart": "2025-10-22T00:00:00+01:00",
+        "AffiliationTitle": "Assembly Party Group Secretary"
+      }
+    ]
+  }
+}
