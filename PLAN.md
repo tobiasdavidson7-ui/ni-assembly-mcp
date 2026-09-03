@@ -68,7 +68,7 @@ operations across the six services (`members`, `organisations`, `plenary`, `hans
 | PMCP tool | Verdict | NI Assembly mapping |
 |---|---|---|
 | `search_parliamentary_questions` | 🟡 | Operation selector over `questions.asmx` (keyword / member / department / date-range) + client-side merge, filter, hydrate top-N via `GetQuestionDetails_JSON`, rank, slice. **Full concrete design + tool-description rewrite in §6.1.** Ships in Phase 4. |
-| `search_debate_titles` | 🟡 | **Ships Phase 6a** (degraded output is still correct). `GetAllHansardReports_JSON` → per-report component fetch → keep `ComponentType=Header`; substring-match client-side. **Date range required**; persistent disk cache. Re-pointed at the index in 6c. See §6.2 / §6.5 pt 1. |
+| `search_debate_titles` | 🟡 | **Phase 6a dropped (2026-09-03) — superseded by 6b's FTS5 index per the TWFY ingestion decision (§6.6).** Ships in **Phase 6b** off the index: TWFY's bulk XML already carries parsed `major-heading`/`minor-heading` rows back to 1998, so the standalone live component walk earns nothing. Behind the `HansardSearchBackend` protocol. See §6.2 / §6.5 pt 1. |
 | `search_contributions` | 🟡 | **Ships Phase 6c only** — FTS5-backed, no labelled-degraded interim. Live component walk is the *indexer's* fetch path (§6.5 pt 1). See §6.3. |
 | `find_relevant_contributors` | 🔴→🟡 | **Ships Phase 6c only.** Pure consumer of the FTS5 index; BM25-weighted contributor ranking. See §6.4 / §6.5 pt 1. |
 
@@ -86,7 +86,7 @@ operations across the six services (`members`, `organisations`, `plenary`, `hans
 
 ### 1f. Coverage summary
 
-- **Keep & remap:** `search_members`, `get_detailed_member_information`, `get_departments`, `list_ministerial_roles`, `get_state_of_the_parties`, `list_all_committees`, `search_parliamentary_questions`, `search_debate_titles`, `search_contributions` (9)
+- **Keep & remap:** `search_members`, `get_detailed_member_information`, `get_departments`, `list_ministerial_roles`, `get_state_of_the_parties`, `list_all_committees`, `search_parliamentary_questions`, `search_debate_titles`, `search_contributions` (9) — `search_debate_titles` now ships in Phase 6b off the FTS5 index, not as a standalone Phase 6a live walk (6a dropped 2026-09-03).
 - **Degrade heavily:** `get_committee_details`, `find_relevant_contributors` (2)
 - **Drop:** `get_election_results`, `get_committee_document` (2)
 - **Add:** ~7 NI-only tools, mostly plenary/divisions/register
@@ -197,18 +197,20 @@ Notes:
 
 ### Phase 6 — Hansard (sequencing is fixed, not a "decide later" — see §6.5)
 
-**Phase 6a — `get_hansard_reports` + `search_debate_titles`** (no index needed)
-- `get_hansard_reports` ➕ — thin wrapper over `GetAllHansardReports_JSON`.
-- `search_debate_titles` 🟡 — bounded live walk (§6.2), **`date_from`/`date_to` required**, backed by the
-  **persistent on-disk HTTP cache** (§6.5 pt 3). Ships with the §6.2 description rewrite.
-- Define the `HansardSearchBackend` protocol here (query in → ranked components out) so 6b swaps
-  cleanly. `search_debate_titles` gets a `LiveWalkBackend`; 6c re-points it at the index, no
-  interface change.
-- **Optional shortcut (§6.6):** now that TWFY de-risks ingestion, 6a may be skipped and
-  `search_debate_titles` shipped straight from the 6b index (headings are already parsed out of the
-  scrape). Do 6a standalone only if Phase 6b is not going to land soon.
+**Phase 6a — DROPPED (2026-09-03).** The standalone live-walk phase (`get_hansard_reports` +
+`search_debate_titles` off a bounded per-report component walk) is **superseded by Phase 6b's FTS5
+index per the TWFY ingestion decision (§6.6)** — this is the §6.6 "optional shortcut" adopted as the
+plan of record. TWFY's bulk XML already carries parsed `major-heading`/`minor-heading` rows back to
+1998, so a separate live component walk earns nothing. Both tools move into 6b:
+- `get_hansard_reports` ➕ — thin wrapper over `GetAllHansardReports_JSON`; ships in 6b alongside the
+  freshness top-up, which already calls the Hansard endpoints.
+- `search_debate_titles` 🟡 — served from the 6b index (distinct `major_heading`/`minor_heading`
+  values within a date range), behind the `HansardSearchBackend` protocol. **No `LiveWalkBackend`
+  is built.**
+- The `HansardSearchBackend` protocol is defined in 6b (was: 6a).
 
-**Phase 6b — Hansard + PQ FTS5 index + ingestion job** (prerequisite for the two weak tools)
+**Phase 6b — Hansard + PQ FTS5 index + ingestion job** (prerequisite for the two weak tools; also
+now carries `get_hansard_reports` + `search_debate_titles`, ex-6a)
 - **Ingestion source decided in §6.6:** Hansard from **TheyWorkForYou bulk XML**
   (`theyworkforyou.com/pwdata/scrapedxml/ni/*.xml`, 1998→present) + `parlparse/members/people.json`
   for `twfy_person_id` → NI `PersonId`; **not** the data API's per-report component walk. PQs from
@@ -225,6 +227,9 @@ Notes:
   stemmed/BM25 ranking **and** answer-text search (`AnswerPlainText`), which the live
   `GetQuestionsBySearchText` endpoint cannot do. Keep the live path as the no-index fallback behind
   the same backend protocol.
+- **Ex-6a tools ship here:** `get_hansard_reports` ➕ (`GetAllHansardReports_JSON` wrapper) and
+  `search_debate_titles` 🟡 (`SELECT DISTINCT` over `major_heading`/`minor_heading` in a date
+  range, behind `HansardSearchBackend`). Define the `HansardSearchBackend` protocol in this phase.
 
 **Phase 6c — `search_contributions` + `find_relevant_contributors`** (gated on 6b)
 - Both are **FTS5-backed only** — no live-walk version ships, even labelled (§6.5 pt 1).
@@ -232,9 +237,9 @@ Notes:
   (group FTS5 hits by PersonId, rank by BM25-sum × hit-count).
 - Ship with the §6.3 / §6.4 description rewrites.
 
-**Search-backend options behind the protocol** (unchanged): (a) live walk — 6a only; **(b) SQLite
-FTS5 — the target, 6b**; (c) Qdrant + embeddings — only if lexical recall proves insufficient,
-re-adds Azure OpenAI + a container.
+**Search-backend options behind the protocol**: (a) live walk — **not built** (Phase 6a dropped
+2026-09-03); **(b) SQLite FTS5 — the target, 6b**; (c) Qdrant + embeddings — only if lexical recall
+proves insufficient, re-adds Azure OpenAI + a container.
 
 ### Phase 7 — XML-only extras (optional)
 - `xmltodict` helper + committee-agenda tools if committee-meeting monitoring is wanted.
@@ -251,11 +256,12 @@ re-adds Azure OpenAI + a container.
 Phase 0 ─► Phase 1 ─► Phase 2 ─► Phase 3
                     └► Phase 4 ─► 4b
                     └► Phase 5
-                    └► Phase 6a ─► 6b (index + ingestion job) ─► 6c ─► Phase 7
+                    └► Phase 6b (index + ingestion job; + get_hansard_reports / search_debate_titles) ─► 6c ─► Phase 7
                                                                 Phase 8 (after any shippable subset)
 ```
+Phase 6a is dropped (2026-09-03) — no standalone live-walk phase; `get_hansard_reports` and
+`search_debate_titles` ship in 6b off the FTS5 index (§6.6 shortcut).
 `search_contributions` / `find_relevant_contributors` (6c) do **not** ship before 6b.
-`search_debate_titles` (6a) ships without the index.
 
 ---
 
@@ -411,11 +417,17 @@ Hard limits:
 
 ### 6.2 `search_debate_titles` — date-window tool
 
+**Phase-6a live walk dropped (2026-09-03) — this tool ships in Phase 6b off the FTS5 index (§6.6
+shortcut; §6.5 pt 1).** TWFY's bulk XML already exposes parsed `major-heading`/`minor-heading` rows
+1998→present, so the query path is a `SELECT DISTINCT` over the index within a date range, not the
+live component walk. The walk below is retained only as (a) the rejected fallback behind the
+`HansardSearchBackend` protocol and (b) the rationale for why a date range remains required.
+
 1. **Candidates:** `GetAllHansardReports_JSON` → for each report whose `PlenaryDate` is in range, `GetHansardComponentsByReportId_JSON`; keep `ComponentType=Header` rows.
 2. **Server-side:** none. Report list has no date param; per-report fetch is the only scoping. `house` dropped (unicameral).
 3. **Client-side:** substring / token-overlap of `query` vs `Header` `ComponentText`; date from parent report; order by date desc.
 4. **Performance:** there is **no header-only endpoint** — you fetch every component (~140/report, tens of KB) to extract headers. Unbounded = **~800 fetches ≈ 4–5 min cold**, then served from the **persistent on-disk HTTP cache** for ~24 h (§6.5 pt 3 — one-off per TTL window, not per restart). Bounded to a quarter (~20 sitting days) ≈ 6–8 s. **`date_from`/`date_to` required** (default last ~6 months). Phase 6c re-points this at the FTS5 index and the cold walk disappears.
-5. **Relevance vs PMCP: worse, least badly.** Section headings are short and formulaic; substring works for known topics, fails on paraphrase. **Tool-description change:** "Keyword match on debate/section headings within a date range; not semantic; ordered by date."
+5. **Relevance vs PMCP: worse, least badly.** Section headings are short and formulaic; substring works for known topics, fails on paraphrase. With the 6b index the match becomes stemmed/BM25 rather than raw substring. **Tool-description change:** "Keyword match on debate/section headings within a date range; not semantic; ordered by date."
 
 ### 6.3 `search_contributions` — index-only (Phase 6c)
 
@@ -438,24 +450,29 @@ Hard limits:
 These are the four decisions that turn §6 from a quality discussion into buildable phases.
 They are **decided here**, not deferred.
 
-#### pt 1 — FTS5 sequencing: build-first for the two weak tools, ship-now for the one that's OK
+#### pt 1 — FTS5 sequencing: the index is the prerequisite; nothing Hansard ships before it
 
-Split the three Hansard tools by whether the degraded version is honestly usable:
+**Superseded 2026-09-03: Phase 6a is dropped.** The original split shipped `search_debate_titles`
+early on a live walk while `search_contributions` / `find_relevant_contributors` waited for the
+index. §6.6 then established that Phase 6b ingests **TWFY bulk XML** — which already carries parsed
+headings and speaker attribution 1998→present — so a standalone 6a live walk builds throwaway code
+for a tool the index serves better and sooner. All three Hansard search tools now ship from the
+6b FTS5 index; `get_hansard_reports` (a trivial `GetAllHansardReports_JSON` wrapper) moves into 6b
+too.
 
-| Tool | Degraded (live-walk) version | Decision |
+| Tool | Original 6a plan | Decision (2026-09-03) |
 |---|---|---|
-| `search_debate_titles` | Headings are short/formulaic; a date-bounded substring match is genuinely useful. | **Ship in Phase 6a** without the index. Behind the `HansardSearchBackend` protocol so 6c re-points it at FTS5 with no interface change. |
-| `search_contributions` | Substring over a date window: poor recall, no ranking, heavy fetch. Known-bad. | **Do not ship until 6b.** No labelled-degraded interim version — the live walk is used *only* as the indexer's fetch path, never as a query path. |
-| `find_relevant_contributors` | Ranks by literal-hit frequency → biased to frequent speakers. Worse than useless for its stated purpose. | **Do not ship until 6b.** Pure consumer of the FTS5 index. |
+| `search_debate_titles` | Ship in Phase 6a on a date-bounded live component walk. | **Phase 6a dropped.** Ships in **Phase 6b** off the index (`SELECT DISTINCT` over headings within a date range). Still behind the `HansardSearchBackend` protocol. **No `LiveWalkBackend` built.** |
+| `search_contributions` | Do not ship until 6b. | Unchanged — ships in **6c** off the index. |
+| `find_relevant_contributors` | Do not ship until 6b. | Unchanged — ships in **6c** off the index. |
 
-So the ingestion pipeline is **Phase 6b, a hard prerequisite for Phase 6c** — not a "fast follow".
-The plan's phase numbers now reflect this (6a → 6b → 6c). "Later" is not on the table for 6b; it
-gates two tools.
+So the ingestion pipeline (**Phase 6b**) is a hard prerequisite for **every** Hansard tool, not
+just 6c. Sequence is now **6b → 6c** (no 6a).
 
-Rejected alternative (ship all three labelled-degraded, swap backend later): the interface is
-already swap-safe, so the only thing an interim `search_contributions` buys is a tool that returns
-misleading results for weeks. Not worth it. `search_debate_titles` is the exception because its
-degraded output is *correct*, just slower on cold cache.
+Rejected alternative (keep a standalone 6a live walk for `search_debate_titles`): the
+`HansardSearchBackend` interface is swap-safe, TWFY de-risks 6b ingestion, and the live walk costs
+~4–5 min cold — so the only thing a standalone 6a buys is throwaway code and a slower tool for a
+few weeks. Dropped.
 
 #### pt 2 — the index is built by an offline job, never lazily on first query
 
@@ -490,11 +507,12 @@ disk-backed and restart-safe. Two fixes needed:
 - The base path is `".cache/hishel"` **relative to the process CWD** — fragile (a restart from a
   different directory misses the whole cache). Pin it: `HISHEL_CACHE_DIR`, default
   `~/.cache/ni-assembly-mcp/http`. Drop the `AWS_LAMBDA_*` `/tmp` branch (§2b).
-- Docker: mount the cache dir as a volume, or a redeploy pays the cold walk again.
+- Docker: mount the cache dir as a volume, or a redeploy re-fetches everything.
 
-With this, `search_debate_titles`'s 4–5 min cold cost is a genuine one-off per ~24 h TTL window,
-not per restart. (Once the 6b index exists, `search_debate_titles` reads the index and the cold
-walk disappears entirely.)
+This still matters without a standalone 6a: the 6b indexer's freshness top-up and the
+`get_hansard_reports` wrapper both hit `data.niassembly.gov.uk`, and `search_parliamentary_questions`'
+live fallback path relies on the cache. (Phase 6a's cold-walk concern is moot — 6a is dropped;
+`search_debate_titles` reads the 6b index.)
 
 #### pt 4 — politeness (bulk pull now mostly hits TheyWorkForYou, not the NI server)
 
@@ -536,7 +554,7 @@ runtime dependency.
 
 1. **Keep Phase 6b (FTS5), re-spec its ingestion:** primary source = `https://www.theyworkforyou.com/pwdata/scrapedxml/ni/*.xml` (static files) + `parlparse/members/people.json` for `person_id` → `PersonId`. Store `(speech_id, date, major_heading, minor_heading, person_id_niassembly, twfy_person_id, speakername, text)` in FTS5.
    - Gains: 1998→present history, clean `major/minor-heading` + speaker attribution already parsed, **no legacy-IIS rate-limit exposure** (static file host), simpler than the component-tree walk.
-2. **Keep the NI data API Hansard endpoints as a freshness top-up** — after the bulk load, pull the last ~30 days from `GetHansardComponentsByPlenaryDate_JSON` to cover TWFY's scrape lag. Also still the source for `search_debate_titles` in Phase 6a (before the index exists).
+2. **Keep the NI data API Hansard endpoints as a freshness top-up** — after the bulk load, pull the last ~30 days from `GetHansardComponentsByPlenaryDate_JSON` to cover TWFY's scrape lag. (Phase 6a is dropped — there is no pre-index `search_debate_titles`; it ships in 6b off the index.)
 3. **Do not adopt `getHansard`.** Re-evaluate only if a charity key is granted *and* an online relevance-ranked fallback is wanted on top of the index.
 4. **Licensing:** TWFY/parlparse data is published by mySociety and derived from Assembly material — check the `scrapedxml` reuse terms and mySociety's data licence, and attribute both TWFY and the NI Assembly in the README (ties into §5d).
 5. **§6.5 pt 4 politeness** now mostly applies to `theyworkforyou.com` for the bulk pull (a robust static host — normal rate limiting is fine) and only to `data.niassembly.gov.uk` for the 30-day top-up.
