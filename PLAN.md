@@ -337,20 +337,25 @@ index-backed path — stemmed/BM25 ranking **and** answer-text search, which the
   the questions counters/dates.
 - `cli.py` — `questions` added to the `index` subcommand choices.
 
-**Commit 2 — rewire `search_parliamentary_questions` behind a backend protocol (live fallback)**
+**Commit 2 — rewire `search_parliamentary_questions` behind a backend protocol (live fallback)** ✅ done 2026-09-03
 - `index_query.py` — `QuestionSearchBackend` Protocol; `Fts5QuestionBackend` (index) +
-  `LiveQuestionBackend` (today's operation-selector logic from `tools/questions.py`, lifted
-  verbatim).
-- `tools/questions.py` — try the FTS5 backend; on `IndexNotBuiltError` fall back to the live
-  backend (**current behaviour exactly — no regression for users who never build the index**).
-  Docstring rewrite: with the index, keyword search covers **answer text**, is Porter-stemmed +
+  `LiveQuestionBackend` (the pre-Phase-9 operation-selector body + its `_fetch_range` /
+  `_resolve_department_id` / `_hydrate` / `_person_party_map` helpers, moved here verbatim from
+  `tools/questions.py`). `Fts5QuestionBackend.search` maps the tool args onto `search_questions`
+  (`asking_member_id`→`member_id`, `answering_body_name`→`department`); `party` stays a
+  post-filter via one `GetAllMembers` call, only when supplied (over-fetches ×3 first).
+- `tools/questions.py` — now ~130 lines: `search_parliamentary_questions` builds one kwargs dict,
+  tries `Fts5QuestionBackend(settings)`, and on `IndexNotBuiltError` calls `LiveQuestionBackend()`
+  — **current behaviour exactly for users who never build the index**. Docstring rewritten along
+  the lines below. `get_question_details` unchanged. `conftest._patch_settings` gained
+  `ni_assembly_mcp.tools.questions`. 4 new tool tests (index answer-text hit / stemmed+filter /
+  party filter / live fallback); 181 tests pass.
+  With the index, keyword search covers **answer text**, is Porter-stemmed +
   BM25-ranked, and all filters combine with no hydration cap; **member/department/date filters
   are reliable across the full 2007→present corpus** (no Hansard-style recency caveat). Without
   the index, the existing substring-on-question-text-only limitations stand.
 - Phase 4b (`niassembly_get_answer_html`) drops further in priority — `AnswerPlainText` inline is
   enough for the index and for `get_question_details`.
-
-Pause for review after commit 1 is green, before commit 2.
 
 ### Dependency graph
 ```

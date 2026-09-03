@@ -54,5 +54,6 @@ def _patch_settings(monkeypatch, test_settings):
         "ni_assembly_mcp.http_client",
         "ni_assembly_mcp.index_query",
         "ni_assembly_mcp.tools.hansard",
+        "ni_assembly_mcp.tools.questions",
     ):
         monkeypatch.setattr(f"{module}.settings", test_settings, raising=False)

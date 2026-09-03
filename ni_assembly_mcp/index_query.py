@@ -6,7 +6,12 @@ tool layer imports only what it queries. Phase 6b shipped one query —
 :func:`distinct_headings`, behind :class:`HansardSearchBackend` — for
 ``search_debate_titles``. Phase 6c adds :func:`search_contributions` (BM25 full-
 text over spoken bodies) and :func:`rank_contributors` (PLAN.md §6.3 / §6.4).
-Phase 9 adds :func:`search_questions` (BM25 over question **and answer** text).
+Phase 9 adds :func:`search_questions` (BM25 over question **and answer** text)
+and the :class:`QuestionSearchBackend` pair behind
+``search_parliamentary_questions`` — :class:`Fts5QuestionBackend` (this index)
+and :class:`LiveQuestionBackend` (the ``questions.asmx`` operation-selector,
+lifted here verbatim from ``tools/questions.py`` so the tool falls back to it
+untouched when the index is not built).
 
 **Contributor scoring (§6.4) is a v1 heuristic.** ``rank_contributors`` scores a
 member as ``sum(w_i)`` where ``w_i = -bm25(hit_i)`` -- BM25-weighted volume,
@@ -19,11 +24,19 @@ with ``mean(w) * log(1 + count)`` if results skew toward prolific speakers.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import sqlite3
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
+from ni_assembly_mcp.exceptions import NIAssemblyAPIError
 from ni_assembly_mcp.index_db import open_index
+from ni_assembly_mcp.models import Member, Organisation, Question, coerce_records
+from ni_assembly_mcp.niassembly_client import niassembly_get
 from ni_assembly_mcp.settings import Settings, settings
+
+logger = logging.getLogger(__name__)
 
 # Match against the two heading columns only (not ``body``).
 _HEADING_COLUMNS = "{major_heading minor_heading}"
@@ -375,6 +388,278 @@ def search_questions(
         f"WHERE f.question_fts MATCH ?{filters} ORDER BY rank LIMIT ?"
     )
     return [_question_row(r, scored=True) for r in conn.execute(sql, [match, *fparams, limit]).fetchall()]
+
+
+# ---------------------------------------------------------------------------
+# search_parliamentary_questions backends (PLAN.md Phase 9 commit 2 / §6.1)
+#
+# The tool tries :class:`Fts5QuestionBackend` first and falls back to
+# :class:`LiveQuestionBackend` on :class:`IndexNotBuiltError`, so a user who
+# never builds the index sees exactly the pre-Phase-9 behaviour. The live code
+# below is lifted verbatim from ``tools/questions.py`` (Phase 4).
+# ---------------------------------------------------------------------------
+
+# The four date-range operations (written/oral, tabled/answered). Merged and
+# de-duped on DocumentId when a bare date range drives the search.
+_RANGE_OPS = (
+    "GetQuestionsForWrittenAnswer_TabledInRange",
+    "GetQuestionsForWrittenAnswer_AnsweredInRange",
+    "GetQuestionsForOralAnswer_TabledInRange",
+    "GetQuestionsForOralAnswer_AnsweredInRange",
+)
+_DEFAULT_WINDOW_DAYS = 90
+# GetQuestionsBySearchText is server-side substring over ALL time; a broad term
+# ("health") can return >10 MB. Above this many raw matches, refuse to rank
+# rather than hydrate thousands of records (PLAN.md 6.1 pt 4).
+_MAX_RANKABLE = 2000
+_HYDRATE_FACTOR = 3
+_PHRASE_BONUS = 5
+
+
+def _today() -> str:
+    return datetime.now(tz=UTC).date().isoformat()
+
+
+def _date_window(date_from: str | None, date_to: str | None) -> tuple[str, str]:
+    """Fill in a start/end pair for the range endpoints (both are required)."""
+    if not date_from and not date_to:
+        start = (datetime.now(tz=UTC).date() - timedelta(days=_DEFAULT_WINDOW_DAYS)).isoformat()
+        return start, _today()
+    return date_from or "2007-01-01", date_to or _today()
+
+
+def _iso_date(value: str | None) -> str:
+    """Date portion of an NI datetime string ('2026-06-01T00:00:00+01:00' -> '2026-06-01')."""
+    return (value or "")[:10]
+
+
+def _score_question(question: dict, tokens: list[str], phrase: str) -> int:
+    """Token-overlap score with a whole-phrase bonus (PLAN.md §6.1 pt 3).
+
+    No stemming, no synonyms — literal substring on the question text only.
+    """
+    text = (question.get("question_text") or "").lower()
+    hits = sum(1 for token in tokens if token in text)
+    bonus = _PHRASE_BONUS if phrase and phrase in text else 0
+    return hits + bonus
+
+
+async def _fetch_range(date_from: str, date_to: str) -> list[dict]:
+    results = await asyncio.gather(
+        *(niassembly_get("questions", op, startDate=date_from, endDate=date_to) for op in _RANGE_OPS),
+        return_exceptions=True,
+    )
+    merged: dict[object, dict] = {}
+    for op, result in zip(_RANGE_OPS, results, strict=True):
+        if isinstance(result, BaseException):
+            logger.warning("range op %s failed: %s", op, result)
+            continue
+        for record in result:
+            merged.setdefault(record.get("DocumentId", id(record)), record)
+    return list(merged.values())
+
+
+async def _resolve_department_id(name: str) -> int | None:
+    needle = name.strip().lower()
+    departments = coerce_records(
+        Organisation, await niassembly_get("organisations", "GetDepartmentListCurrent")
+    )
+    for department in departments:
+        full = (department.get("organisation_name") or "").lower()
+        abbr = (department.get("organisation_abbreviation") or "").lower()
+        if needle and (needle in full or needle == abbr):
+            return department.get("organisation_id")
+    return None
+
+
+async def _hydrate(questions: list[dict]) -> list[dict]:
+    """Fill in tabler/department/answer fields via GetQuestionDetails.
+
+    The keyword endpoint's records omit ``tabler_person_id`` / ``department_name``,
+    so member/party/department filters on a keyword search need this (PLAN.md §6.1
+    pt 3). A per-record failure keeps the lean record rather than sinking the call.
+    """
+
+    async def _one(question: dict) -> dict:
+        document_id = question.get("document_id")
+        if document_id is None:
+            return question
+        try:
+            records = await niassembly_get("questions", "GetQuestionDetails", documentId=document_id)
+        except NIAssemblyAPIError as exc:  # pragma: no cover - best-effort enrichment
+            logger.warning("hydration failed for document %s: %s", document_id, exc)
+            return question
+        detailed = coerce_records(Question, records)
+        return {**question, **detailed[0]} if detailed else question
+
+    return list(await asyncio.gather(*(_one(question) for question in questions)))
+
+
+async def _person_party_map() -> dict[int, str]:
+    members = coerce_records(Member, await niassembly_get("members", "GetAllMembers"))
+    return {m["person_id"]: m["party_name"] for m in members if m.get("person_id") and m.get("party_name")}
+
+
+def _party_matches(member_party: str | None, wanted: str) -> bool:
+    if not member_party:
+        return False
+    a, b = member_party.lower(), wanted.strip().lower()
+    return b in a or a in b
+
+
+class QuestionSearchBackend(Protocol):
+    """The swappable surface behind ``search_parliamentary_questions``.
+
+    One method mirroring the tool's signature. :class:`Fts5QuestionBackend` reads
+    the local index; :class:`LiveQuestionBackend` hits ``questions.asmx``. The
+    tool prefers the former and falls back to the latter on
+    :class:`~ni_assembly_mcp.exceptions.IndexNotBuiltError`.
+    """
+
+    async def search(
+        self,
+        *,
+        query: str | None,
+        date_from: str | None,
+        date_to: str | None,
+        party: str | None,
+        asking_member_id: int | None,
+        answering_body_name: str | None,
+        max_results: int,
+    ) -> list[dict] | str: ...
+
+
+class Fts5QuestionBackend:
+    """:class:`QuestionSearchBackend` backed by the local SQLite FTS5 index.
+
+    Opens the index read-only per call; raises
+    :class:`~ni_assembly_mcp.exceptions.IndexNotBuiltError` (from
+    :func:`~ni_assembly_mcp.index_db.open_index` with ``require_table="question"``)
+    when the questions table is missing/empty, which the tool turns into a live
+    fallback. ``party`` still needs the members list, so it is applied as a
+    post-filter with one ``GetAllMembers`` call (only when supplied).
+    """
+
+    def __init__(self, config: Settings | None = None) -> None:
+        self._config = config or settings
+
+    async def search(
+        self,
+        *,
+        query: str | None,
+        date_from: str | None,
+        date_to: str | None,
+        party: str | None,
+        asking_member_id: int | None,
+        answering_body_name: str | None,
+        max_results: int,
+    ) -> list[dict] | str:
+        conn = open_index(self._config.index_db_path, read_only=True, require_table="question")
+        try:
+            # Over-fetch when a party post-filter will thin the rows out.
+            limit = max_results * _HYDRATE_FACTOR if party else max_results
+            rows = search_questions(
+                conn,
+                (query or "").strip() or None,
+                member_id=asking_member_id,
+                department=answering_body_name,
+                date_from=date_from,
+                date_to=date_to,
+                limit=limit,
+            )
+        finally:
+            conn.close()
+
+        if party is not None:
+            party_map = await _person_party_map()
+            rows = [r for r in rows if _party_matches(party_map.get(r.get("tabler_person_id")), party)]
+
+        if not rows:
+            return "No questions matched the given query and filters."
+        return rows[:max_results]
+
+
+class LiveQuestionBackend:
+    """:class:`QuestionSearchBackend` hitting ``questions.asmx`` live.
+
+    The pre-Phase-9 ``search_parliamentary_questions`` body, moved here verbatim:
+    an operation selector (``query`` > ``asking_member_id`` >
+    ``answering_body_name`` > date range > last 90 days) then client-side
+    ranking, hydration and filtering.
+    """
+
+    async def search(
+        self,
+        *,
+        query: str | None,
+        date_from: str | None,
+        date_to: str | None,
+        party: str | None,
+        asking_member_id: int | None,
+        answering_body_name: str | None,
+        max_results: int,
+    ) -> list[dict] | str:
+        query = (query or "").strip() or None
+
+        if query:
+            raw = await niassembly_get("questions", "GetQuestionsBySearchText", searchText=query)
+            selector = "keyword"
+        elif asking_member_id is not None:
+            raw = await niassembly_get("questions", "GetQuestionsByMember", personId=asking_member_id)
+            selector = "member"
+        elif answering_body_name:
+            department_id = await _resolve_department_id(answering_body_name)
+            if department_id is None:
+                return f"No department matched {answering_body_name!r}. See get_departments for valid names."
+            raw = await niassembly_get("questions", "GetQuestionsByDepartment", departmentId=department_id)
+            selector = "department"
+        else:
+            window_from, window_to = _date_window(date_from, date_to)
+            raw = await _fetch_range(window_from, window_to)
+            selector = "range"
+
+        if not raw:
+            return "No questions found for the given filters."
+
+        if selector == "keyword" and len(raw) > _MAX_RANKABLE and not (date_from or date_to):
+            return (
+                f"{query!r} matched {len(raw)} questions — too many to rank reliably. "
+                "Add date_from/date_to or use a more specific term."
+            )
+
+        questions = coerce_records(Question, raw)
+
+        if query:
+            tokens = list(dict.fromkeys(query.lower().split()))
+            phrase = query.lower()
+            questions = [q for q in questions if _score_question(q, tokens, phrase) > 0]
+            questions.sort(key=lambda q: q.get("tabled_date") or "", reverse=True)
+            questions.sort(key=lambda q: _score_question(q, tokens, phrase), reverse=True)
+        else:
+            questions.sort(key=lambda q: q.get("tabled_date") or "", reverse=True)
+
+        need_hydration = selector == "keyword" and (
+            asking_member_id is not None or party is not None or answering_body_name is not None
+        )
+        if need_hydration:
+            questions = await _hydrate(questions[: max_results * _HYDRATE_FACTOR])
+
+        if date_from:
+            questions = [q for q in questions if _iso_date(q.get("tabled_date")) >= date_from]
+        if date_to:
+            questions = [q for q in questions if _iso_date(q.get("tabled_date")) <= date_to]
+        if asking_member_id is not None:
+            questions = [q for q in questions if q.get("tabler_person_id") == asking_member_id]
+        if answering_body_name:
+            needle = answering_body_name.strip().lower()
+            questions = [q for q in questions if needle in (q.get("department_name") or "").lower()]
+        if party is not None:
+            party_map = await _person_party_map()
+            questions = [q for q in questions if _party_matches(party_map.get(q.get("tabler_person_id")), party)]
+
+        if not questions:
+            return "No questions matched after applying filters."
+        return questions[:max_results]
 
 
 class HansardSearchBackend(Protocol):
