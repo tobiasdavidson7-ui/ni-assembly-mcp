@@ -7,9 +7,10 @@ Ported from [`i-dot-ai/parliament-mcp`](https://github.com/i-dot-ai/parliament-m
 (MIT, © 2025 i.AI). See [`PLAN.md`](PLAN.md) for the porting design and phase plan,
 and [`NOTICE`](NOTICE) for attribution.
 
-> Status: **early development.** Phase 6b (Hansard debate-title search off a local
-> FTS5 index) complete. `search_contributions` / `find_relevant_contributors` are
-> still to come (Phase 6c — see [`PLAN.md`](PLAN.md) §4).
+> Status: **early development.** Phases 0–7 implemented. Still deferred: the
+> questions FTS5 index + index-backed `search_parliamentary_questions` path,
+> the 4b full written-answer fetch, and packaging (Phase 8) — see
+> [`PLAN.md`](PLAN.md) §4.
 
 This project is **not affiliated with the Northern Ireland Assembly** or with
 mySociety / TheyWorkForYou.
@@ -38,6 +39,19 @@ mySociety / TheyWorkForYou.
 | `get_no_day_named_motions` | Motions tabled with no scheduled debate date |
 | `get_hansard_reports` | Official Report (Hansard) sitting days, newest first |
 | `search_debate_titles` | Debate/section headings matching a keyword in a date range (local index; stemmed, not semantic) |
+| `search_contributions` | Full-text search over spoken contributions, 1998→present (local index; stemmed, BM25-ranked) |
+| `find_relevant_contributors` | Members ranked by how much they spoke on the query terms (local index; BM25-weighted) |
+| `get_committee_agenda` | ⚠ Order of business for committee meetings, by date / committee / meeting event id (XML-only endpoint) |
+
+### Committee data — what is *not* available
+
+This API has **no JSON committee endpoint** and no committee inquiry / evidence /
+publications / minutes data at all. `get_committee_agenda` (Phase 7) wraps the
+three XML-only `GetCommitteeAgendaItems*` operations to give the order of
+business for a meeting; committee *scheduling* comes from `get_business_diary`
+(filter `event_type="Committee Meeting"`). There is no `get_committee_details`
+with membership/chairs beyond what `get_detailed_member_information` and
+`list_ministerial_roles` derive from the roles data.
 
 ## Running the server
 
@@ -48,9 +62,9 @@ ni-assembly-mcp serve --http --port 8000   # streamable HTTP
 
 ## Building the Hansard index
 
-`search_debate_titles` (and, later, `search_contributions`) read a local SQLite
-FTS5 index — the NI Assembly API has no Hansard search. The index is built
-**offline**; the server never builds it in a request.
+`search_debate_titles`, `search_contributions` and `find_relevant_contributors`
+read a local SQLite FTS5 index — the NI Assembly API has no Hansard search. The
+index is built **offline**; the server never builds it in a request.
 
 ```bash
 ni-assembly-mcp index hansard --full   # first build: TheyWorkForYou bulk XML, 1998->present

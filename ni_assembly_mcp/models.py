@@ -418,3 +418,34 @@ class MotionPetitionOfConcern(NIABaseModel):
     title: str | None = Field(None, alias="Title")
     tabled_date: NIADateTime | None = Field(None, alias="TabledDate")
     plenary_date: NIADateTime | None = Field(None, alias="PlenaryDate")
+
+
+# --- Committee agendas (PLAN.md Phase 7 / §3 — XML-only) ------------------------
+
+
+class CommitteeAgendaItem(NIABaseModel):
+    """One agenda item for a committee meeting, from the XML-only
+    ``plenary.asmx/GetCommitteeAgendaItems*`` operations (PLAN.md §3). This API has
+    no JSON committee-agenda endpoint, so :func:`~ni_assembly_mcp.niassembly_client.niassembly_get_xml`
+    parses the ``<ItemList><Committee>…</Committee></ItemList>`` body.
+
+    A meeting has several items (``ItemOrder`` is the running order); a sitting day
+    has several meetings. ``EventId`` matches the ``get_business_diary`` event id,
+    so that tool finds the meeting and this one lists its business. ``Session`` is
+    the public/closed status plus the time span; ``SessionStart`` / ``SessionEnd``
+    are wall-clock times of day (``"09:15"``), not dates.
+    """
+
+    event_id: int | None = Field(None, alias="EventId")
+    item_id: int | None = Field(None, alias="ItemId")
+    item_of_business: str | None = Field(None, alias="ItemOfBusiness")
+    item_type: str | None = Field(None, alias="ItemType")
+    item_order: int | None = Field(None, alias="ItemOrder")
+    committee_name: str | None = Field(None, alias="CommitteeName")
+    organisation_id: int | None = Field(None, alias="OrganisationId")
+    meeting_date: NIADateTime | None = Field(None, alias="MeetingDate")
+    session_start: str | None = Field(None, alias="SessionStart")
+    session_end: str | None = Field(None, alias="SessionEnd")
+    session: str | None = Field(None, alias="Session")
+    session_from: str | None = Field(None, alias="SessionFrom")
+    session_last_modified: NIADateTime | None = Field(None, alias="SessionLastModified")

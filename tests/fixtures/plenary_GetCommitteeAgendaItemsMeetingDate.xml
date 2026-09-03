@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ItemList>
+  <Committee>
+    <EventId>17517</EventId>
+    <ItemId>264851</ItemId>
+    <ItemOfBusiness>Committee Business</ItemOfBusiness>
+    <ItemType>Committee Business</ItemType>
+    <ItemOrder>1</ItemOrder>
+    <CommitteeName>Business Committee</CommitteeName>
+    <MeetingDate>2025-01-14T00:00:00+00:00</MeetingDate>
+    <SessionStart>13:02</SessionStart>
+    <SessionEnd>13:07</SessionEnd>
+    <Session>Closed, 1:02 PM - 1:07 PM</Session>
+    <SessionFrom>Closed from 1:02 PM</SessionFrom>
+    <SessionLastModified>2025-01-14T13:16:00+00:00</SessionLastModified>
+  </Committee>
+  <Committee>
+    <EventId>17502</EventId>
+    <ItemId>421726</ItemId>
+    <ItemOfBusiness>Informal Meeting with BBFC</ItemOfBusiness>
+    <ItemType>Non Departmental Briefing</ItemType>
+    <ItemOrder>2</ItemOrder>
+    <CommitteeName>Committee for Education</CommitteeName>
+    <MeetingDate>2025-01-14T00:00:00+00:00</MeetingDate>
+    <SessionStart>09:15</SessionStart>
+    <SessionEnd>10:00</SessionEnd>
+    <Session>Informal, 9:15 AM - 10:00 AM</Session>
+    <SessionFrom>Informal from 9:15 AM</SessionFrom>
+    <SessionLastModified>2024-12-16T11:48:00+00:00</SessionLastModified>
+  </Committee>
+  <Committee>
+    <EventId>17502</EventId>
+    <ItemId>421727</ItemId>
+    <ItemOfBusiness>Apologies</ItemOfBusiness>
+    <ItemType>Committee Business</ItemType>
+    <ItemOrder>1</ItemOrder>
+    <CommitteeName>Committee for Education</CommitteeName>
+    <MeetingDate>2025-01-14T00:00:00+00:00</MeetingDate>
+    <SessionStart>10:00</SessionStart>
+    <SessionEnd>10:05</SessionEnd>
+    <Session>Public, 10:00 AM - 10:05 AM</Session>
+    <SessionFrom>Public from 10:00 AM</SessionFrom>
+    <SessionLastModified>2024-12-16T11:48:00+00:00</SessionLastModified>
+  </Committee>
+</ItemList>

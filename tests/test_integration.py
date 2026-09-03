@@ -14,6 +14,7 @@ from ni_assembly_mcp.ingest.http import PoliteFetcher
 from ni_assembly_mcp.ingest.people_map import load_person_map
 from ni_assembly_mcp.ingest.twfy import parse_scrape_file
 from ni_assembly_mcp.niassembly_client import niassembly_get
+from ni_assembly_mcp.tools.committees import get_committee_agenda
 from ni_assembly_mcp.tools.hansard import get_hansard_reports, search_debate_titles
 from ni_assembly_mcp.tools.member_detail import (
     get_detailed_member_information,
@@ -179,6 +180,19 @@ async def test_hansard_index_one_real_scrape_file(test_settings):
         assert distinct_headings(conn, term, date_from="2026-06-01", date_to="2026-07-01", limit=20)
     finally:
         conn.close()
+
+
+async def test_get_committee_agenda_live():
+    # 2025-01-14 — Committee for Education (OrganisationId 118), EventId 17502.
+    by_date = await get_committee_agenda(meeting_date="2025-01-14")
+    assert isinstance(by_date, list) and by_date
+    assert any(r["committee_name"] == "Committee for Education" for r in by_date)
+
+    by_committee = await get_committee_agenda(meeting_date="2025-01-14", committee_id=118)
+    assert by_committee and all(r["committee_name"] == "Committee for Education" for r in by_committee)
+
+    by_event = await get_committee_agenda(event_id=17502)
+    assert by_event and {r["event_id"] for r in by_event} == {17502}
 
 
 async def test_get_motion_context_petition_of_concern_live():

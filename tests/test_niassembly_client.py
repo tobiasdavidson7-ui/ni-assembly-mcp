@@ -5,7 +5,7 @@ import pytest
 import respx
 
 from ni_assembly_mcp.exceptions import NIAssemblyAPIError
-from ni_assembly_mcp.niassembly_client import niassembly_get
+from ni_assembly_mcp.niassembly_client import niassembly_get, niassembly_get_xml
 
 BASE = "https://data.niassembly.gov.uk"
 
@@ -79,3 +79,57 @@ async def test_500_then_200_recovers(test_settings):
 async def test_unknown_service_rejected(test_settings):
     with pytest.raises(ValueError, match="Unknown NI Assembly service"):
         await niassembly_get("nope", "Whatever", config=test_settings)
+
+
+# --- niassembly_get_xml (PLAN.md §3 — no _JSON variant) --------------------------
+
+
+@respx.mock
+async def test_niassembly_get_xml_flattens_rows(test_settings):
+    route = respx.get(f"{BASE}/plenary.asmx/GetCommitteeAgendaItemsMeetingDate").mock(
+        return_value=httpx.Response(
+            200,
+            text=(
+                '<?xml version="1.0" encoding="utf-8"?>'
+                "<ItemList>"
+                "<Committee><EventId>17502</EventId><ItemOrder>1</ItemOrder>"
+                "<ItemOfBusiness>Apologies</ItemOfBusiness><Blank></Blank></Committee>"
+                "<Committee><EventId>17517</EventId><ItemOrder>1</ItemOrder>"
+                "<ItemOfBusiness>Committee Business</ItemOfBusiness></Committee>"
+                "</ItemList>"
+            ),
+            headers={"content-type": "text/xml; charset=utf-8"},
+        )
+    )
+    rows = await niassembly_get_xml(
+        "plenary", "GetCommitteeAgendaItemsMeetingDate", meetingDate="2025-01-14", config=test_settings
+    )
+    assert route.calls.last.request.url.params["meetingDate"] == "2025-01-14"
+    assert rows == [
+        {"EventId": "17502", "ItemOrder": "1", "ItemOfBusiness": "Apologies", "Blank": ""},
+        {"EventId": "17517", "ItemOrder": "1", "ItemOfBusiness": "Committee Business"},
+    ]
+
+
+@respx.mock
+async def test_niassembly_get_xml_empty_container(test_settings):
+    respx.get(f"{BASE}/plenary.asmx/GetCommitteeAgendaItemsMeetingDate").mock(
+        return_value=httpx.Response(
+            200, text='<?xml version="1.0"?><ItemList />', headers={"content-type": "text/xml"}
+        )
+    )
+    rows = await niassembly_get_xml(
+        "plenary", "GetCommitteeAgendaItemsMeetingDate", meetingDate="2025-01-01", config=test_settings
+    )
+    assert rows == []
+
+
+@respx.mock
+async def test_niassembly_get_xml_bad_body_raises(test_settings):
+    respx.get(f"{BASE}/plenary.asmx/GetCommitteeAgendaItemsMeetingDate").mock(
+        return_value=httpx.Response(200, text="<html>Runtime Error", headers={"content-type": "text/html"})
+    )
+    with pytest.raises(NIAssemblyAPIError):
+        await niassembly_get_xml(
+            "plenary", "GetCommitteeAgendaItemsMeetingDate", meetingDate="x", config=test_settings
+        )

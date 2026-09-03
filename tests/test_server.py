@@ -33,6 +33,8 @@ EXPECTED_TOOLS = {
     # Phase 6c — Hansard contribution search
     "search_contributions",
     "find_relevant_contributors",
+    # Phase 7 — XML-only extras
+    "get_committee_agenda",
 }
 
 

@@ -252,9 +252,21 @@ now carries `get_hansard_reports` + `search_debate_titles`, ex-6a)
 2026-09-03); **(b) SQLite FTS5 — the target, 6b**; (c) Qdrant + embeddings — only if lexical recall
 proves insufficient, re-adds Azure OpenAI + a container.
 
-### Phase 7 — XML-only extras (optional)
-- `xmltodict` helper + committee-agenda tools if committee-meeting monitoring is wanted.
-- `get_committee_events` replacement (§5f): PMCP's committee events/calendar has no direct NI JSON source. Compose a partial from `plenary.asmx/GetBusinessDiary_JSON` filtered to committee rows, and add the three `GetCommitteeAgendaItems*` XML operations here for agendas. Ships disabled until this phase — call that out in the README so the capability gap is explicit, not silent.
+### Phase 7 — XML-only extras (optional) — **shipped 2026-09-03**
+- **XML helper:** `niassembly_get_xml(service, operation, **params) -> list[dict]` in
+  `niassembly_client.py` — GET `<service>.asmx/<operation>` (no `_JSON` suffix), stdlib
+  `xml.etree.ElementTree` parse (no `xmltodict` dep — consistent with the TWFY-parser
+  decision; PLAN §2c/§3's `xmltodict` note superseded), flatten each repeated child
+  element to `{tag: text}`, `NIAssemblyAPIError` on a non-XML / unparseable body.
+- **`get_committee_agenda`** ➕ (`tools/committees.py`, model `CommitteeAgendaItem`):
+  selector over the three XML-only ops — `event_id` → `GetCommitteeAgendaItemsCommitteeMeetingId`;
+  `meeting_date` + `committee_id` → `GetCommitteeAgendaItemsCommitteeMeetingDate`
+  (`organisationId`); `meeting_date` alone → `GetCommitteeAgendaItemsMeetingDate`. Rows
+  sorted by committee then `item_order`. `EventId` matches `get_business_diary`.
+- **`get_committee_events` NOT built** — `get_business_diary` (Phase 5) already exposes
+  committee-meeting rows generically (`event_type="Committee Meeting"`); a dedicated
+  diary-filtered wrapper earned nothing. Committee capability gap documented in the
+  README ("Committee data — what is *not* available").
 
 ### Phase 8 — Packaging
 - `claude_config.json` (stdio command form — `ni-assembly-mcp serve`, no `mcp-remote` proxy), README (incl. §5d licence/attribution, the §5f capability-gap note, and the §6 tool-description rewrites), `docker-compose.yaml` (only needed for the `http` extra or persistent volumes; the default stdio server needs no compose), deploy target.
