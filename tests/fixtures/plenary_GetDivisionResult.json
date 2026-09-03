@@ -1,0 +1,25 @@
+{
+  "DivisionDetails": {
+    "Division": {
+      "EventId": "17167",
+      "EventDate": "2024-09-23T13:39:27.543+01:00",
+      "Title": "Final Stage: Budget (No. 2) Bill (NIA Bill 06/22-27)",
+      "DocumentID": "409547",
+      "DecisionMethod": "Lobby Division",
+      "Outcome": "The Motion Was Carried By Cross Community Consent",
+      "DecisionType": "Cross-Community",
+      "TotalAyes": "58",
+      "NationalistAyes": "23",
+      "UnionistAyes": "19",
+      "OtherAyes": "16",
+      "TotalNoes": "13",
+      "NationalistNoes": "4",
+      "UnionistNoes": "8",
+      "OtherNoes": "1",
+      "TotalAbstentions": "0",
+      "NationalistAbstentions": "0",
+      "UnionistAbstentions": "0",
+      "OtherAbstentions": "0"
+    }
+  }
+}

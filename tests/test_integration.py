@@ -16,6 +16,12 @@ from ni_assembly_mcp.tools.member_detail import (
     list_ministerial_roles,
 )
 from ni_assembly_mcp.tools.members import search_members
+from ni_assembly_mcp.tools.plenary import (
+    get_business_diary,
+    get_divisions,
+    get_motion_context,
+    search_plenary_business,
+)
 from ni_assembly_mcp.tools.reference import (
     get_constituencies,
     get_departments,
@@ -85,3 +91,32 @@ async def test_state_of_the_parties_live():
     result = await get_state_of_the_parties()
     assert result["total_seats"] >= 85
     assert result["parties"][0]["seats"] >= result["parties"][-1]["seats"]
+
+
+async def test_business_diary_live():
+    rows = await get_business_diary(start_date="2024-09-01", end_date="2024-09-30")
+    assert rows and any(r["event_type"].startswith("Sitting") for r in rows)
+
+
+async def test_search_plenary_business_live():
+    rows = await search_plenary_business(
+        date_from="2024-09-01", date_to="2024-09-30", plenary_type="Motion", include_tablers=True
+    )
+    assert rows and all("Motion" in r["plenary_type"] for r in rows)
+    assert any(r.get("tablers") for r in rows)
+
+
+async def test_get_divisions_live():
+    rows = await get_divisions(date_from="2024-09-01", date_to="2024-09-30")
+    assert rows and all("outcome" in r.get("result", {}) for r in rows)
+
+    detail = await get_divisions(document_id=rows[0]["document_id"])
+    assert detail["division_result"]["document_id"] == rows[0]["document_id"]
+    assert detail["member_voting"]
+
+
+async def test_get_motion_context_live():
+    # 409547 — Final Stage of the Budget (No. 2) Bill; has a linked Bill.
+    result = await get_motion_context(document_id=409547)
+    assert result["motion"]["document_id"] == 409547
+    assert result["bill"]["reference_number"].startswith("NIA Bill")

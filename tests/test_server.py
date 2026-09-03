@@ -21,6 +21,12 @@ EXPECTED_TOOLS = {
     # Phase 4 — parliamentary questions
     "search_parliamentary_questions",
     "get_question_details",
+    # Phase 5 — plenary business & divisions
+    "search_plenary_business",
+    "get_business_diary",
+    "get_divisions",
+    "get_motion_context",
+    "get_no_day_named_motions",
 }
 
 

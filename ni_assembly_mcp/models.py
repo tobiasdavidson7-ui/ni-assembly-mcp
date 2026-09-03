@@ -233,3 +233,170 @@ class Question(NIABaseModel):
     answer_plain_text: str | None = Field(None, alias="AnswerPlainText")
     answer_html: str | None = Field(None, alias="AnswerHtml")
     answer_open_xml: str | None = Field(None, alias="AnswerOpenXml")
+
+
+# --- Plenary & divisions (PLAN.md Phase 5 / §1e) --------------------------------
+
+
+class PlenaryItem(NIABaseModel):
+    """A tabled plenary item — motion, amendment, ministerial statement, urgent
+    oral question, no-day-named motion, … — from ``GetPlenaryItemsTabledDate`` /
+    ``…PlenaryDate`` / ``…TabledByMember`` (list shape), ``GetPlenaryDetails``
+    (rich single record) and ``GetNoDayNamedMotions``.
+
+    Note the key is ``DocumentID`` (capital ``ID``), *unlike* the questions
+    service's ``DocumentId``. ``Text`` is the motion/amendment wording; ``Title``
+    is the short heading. ``TabledDate`` is when it was lodged; ``PlenaryDate`` /
+    ``ConsideredDate`` when it is (was) scheduled / debated.
+    """
+
+    document_id: int | None = Field(None, alias="DocumentID")
+    session_id: int | None = Field(None, alias="SessionID")
+    session: str | None = Field(None, alias="Session")
+    person_id: int | None = Field(None, alias="PersonID")
+    title: str | None = Field(None, alias="Title")
+    text: str | None = Field(None, alias="Text")
+    tabled_date: NIADateTime | None = Field(None, alias="TabledDate")
+    considered_date: NIADateTime | None = Field(None, alias="ConsideredDate")
+    plenary_date: NIADateTime | None = Field(None, alias="PlenaryDate")
+    plenary_type_id: int | None = Field(None, alias="PlenaryTypeID")
+    plenary_type: str | None = Field(None, alias="PlenaryType")
+    document_type_id: int | None = Field(None, alias="DocumentTypeID")
+    document_type: str | None = Field(None, alias="DocumentType")
+    motion_category_id: int | None = Field(None, alias="MotionCategoryID")
+    motion_category: str | None = Field(None, alias="MotionCategory")
+    motion_last_modified: NIADateTime | None = Field(None, alias="MotionLastModified")
+
+
+class PlenaryTabler(NIABaseModel):
+    """A member who tabled (proposed / co-signed) a plenary item, from
+    ``GetPlenaryTablers``. ``TablerSequence`` is the sign-up order."""
+
+    document_id: int | None = Field(None, alias="DocumentID")
+    tabler_sequence: int | None = Field(None, alias="TablerSequence")
+    tabler_person_id: int | None = Field(None, alias="TablerPersonID")
+    tabler_name: str | None = Field(None, alias="TablerName")
+    tabler_title: str | None = Field(None, alias="TablerTitle")
+
+
+class PlenaryAddressee(NIABaseModel):
+    """The Minister (or body) a plenary item is addressed to, from
+    ``GetPlenaryAddressees`` — e.g. the Minister an urgent oral question is put to."""
+
+    document_id: int | None = Field(None, alias="DocumentID")
+    addressee_sequence: int | None = Field(None, alias="AddresseeSequence")
+    addressee_person_id: int | None = Field(None, alias="AddresseePersonID")
+    addressee_name: str | None = Field(None, alias="AddresseeName")
+    addressee_title: str | None = Field(None, alias="AddresseeTitle")
+
+
+class BusinessDiaryItem(NIABaseModel):
+    """One scheduled event from ``GetBusinessDiary`` — a plenary sitting, a
+    committee meeting, an event in Parliament Buildings. ``EventType`` /
+    ``OrganisationName`` say what and whose."""
+
+    event_id: int | None = Field(None, alias="EventId")
+    event_date: NIADateTime | None = Field(None, alias="EventDate")
+    event_type: str | None = Field(None, alias="EventType")
+    event_type_id: int | None = Field(None, alias="EventTypeId")
+    organisation_id: int | None = Field(None, alias="OrganisationId")
+    organisation_name: str | None = Field(None, alias="OrganisationName")
+    start_time: NIADateTime | None = Field(None, alias="StartTime")
+    end_time: NIADateTime | None = Field(None, alias="EndTime")
+    weekday: str | None = Field(None, alias="Weekday")
+    location_room: str | None = Field(None, alias="LocationRoom")
+    address: str | None = Field(None, alias="Address")
+    address1: str | None = Field(None, alias="Address1")
+    town_city: str | None = Field(None, alias="TownCity")
+
+
+class Division(NIABaseModel):
+    """A recorded vote (division) stub from ``GetVotesOnDivision``. ``DocumentID``
+    feeds ``get_divisions(document_id=…)`` / ``get_motion_context``. The API
+    misspells the type key as ``DivisonType`` — aliased here to ``division_type``."""
+
+    event_id: int | None = Field(None, alias="EventID")
+    session_id: int | None = Field(None, alias="SessionID")
+    document_id: int | None = Field(None, alias="DocumentID")
+    division_subject: str | None = Field(None, alias="DivisionSubject")
+    division_date: NIADateTime | None = Field(None, alias="DivisionDate")
+    division_type: str | None = Field(
+        None, validation_alias=AliasChoices("DivisonType", "DivisionType", "division_type")
+    )
+
+
+class DivisionResult(NIABaseModel):
+    """The outcome of a division from ``GetDivisionResult`` — the aye/no/abstention
+    tallies, broken down by community designation, plus the ``Outcome`` string."""
+
+    event_id: int | None = Field(None, alias="EventId")
+    event_date: NIADateTime | None = Field(None, alias="EventDate")
+    title: str | None = Field(None, alias="Title")
+    document_id: int | None = Field(None, alias="DocumentID")
+    decision_method: str | None = Field(None, alias="DecisionMethod")
+    outcome: str | None = Field(None, alias="Outcome")
+    decision_type: str | None = Field(None, alias="DecisionType")
+    total_ayes: int | None = Field(None, alias="TotalAyes")
+    nationalist_ayes: int | None = Field(None, alias="NationalistAyes")
+    unionist_ayes: int | None = Field(None, alias="UnionistAyes")
+    other_ayes: int | None = Field(None, alias="OtherAyes")
+    total_noes: int | None = Field(None, alias="TotalNoes")
+    nationalist_noes: int | None = Field(None, alias="NationalistNoes")
+    unionist_noes: int | None = Field(None, alias="UnionistNoes")
+    other_noes: int | None = Field(None, alias="OtherNoes")
+    total_abstentions: int | None = Field(None, alias="TotalAbstentions")
+    nationalist_abstentions: int | None = Field(None, alias="NationalistAbstentions")
+    unionist_abstentions: int | None = Field(None, alias="UnionistAbstentions")
+    other_abstentions: int | None = Field(None, alias="OtherAbstentions")
+
+
+class DivisionMemberVote(NIABaseModel):
+    """How one member voted in a division, from ``GetDivisionMemberVoting``.
+    ``Vote`` is ``AYE`` / ``NO`` / ``ABSTAINED``; ``Designation`` is the member's
+    community designation at the time."""
+
+    document_id: int | None = Field(None, alias="DocumentID")
+    event_id: int | None = Field(None, alias="EventID")
+    person_id: int | None = Field(None, alias="PersonID")
+    member_name: str | None = Field(None, alias="MemberName")
+    vote: str | None = Field(None, alias="Vote")
+    designation: str | None = Field(None, alias="Designation")
+    vote_in_vacancy: bool | None = Field(None, alias="VoteInVacancy")
+    member_sort_name: str | None = Field(None, alias="MemberSortName")
+
+
+class MotionAmendment(NIABaseModel):
+    """An amendment tabled to a motion, from ``GetMotionAmendments``.
+    ``ParentDocumentID`` is the motion it amends; ``Text`` is the amendment wording."""
+
+    document_id: int | None = Field(None, alias="DocumentID")
+    parent_document_id: int | None = Field(None, alias="ParentDocumentID")
+    tabled_date: NIADateTime | None = Field(None, alias="TabledDate")
+    text: str | None = Field(None, alias="Text")
+
+
+class MotionBill(NIABaseModel):
+    """The Bill a motion relates to, from ``GetMotionBill`` (e.g. a Bill stage
+    motion). ``ParentDocumentID`` is the motion."""
+
+    document_id: int | None = Field(None, alias="DocumentID")
+    parent_document_id: int | None = Field(None, alias="ParentDocumentID")
+    reference_number: str | None = Field(None, alias="ReferenceNumber")
+    bill_type: str | None = Field(None, alias="BillType")
+    bill_name: str | None = Field(None, alias="BillName")
+    short_title: str | None = Field(None, alias="ShortTitle")
+    long_title: str | None = Field(None, alias="LongTitle")
+    stage: str | None = Field(None, alias="Stage")
+    is_accelerated_passage: bool | None = Field(None, alias="IsAcceleratedPassage")
+
+
+class MotionPetitionOfConcern(NIABaseModel):
+    """A Petition of Concern lodged against a motion, from
+    ``GetMotionPetitionOfConcern`` — an NI-specific cross-community veto mechanism.
+    Field set is preserved verbatim (``extra="allow"``); ``ParentDocumentID`` /
+    ``TabledDate`` / ``Text`` are the commonly-present keys."""
+
+    document_id: int | None = Field(None, alias="DocumentID")
+    parent_document_id: int | None = Field(None, alias="ParentDocumentID")
+    tabled_date: NIADateTime | None = Field(None, alias="TabledDate")
+    text: str | None = Field(None, alias="Text")

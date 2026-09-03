@@ -1,0 +1,42 @@
+{
+  "PlenaryList": {
+    "Plenary": [
+      {
+        "DocumentID": "412048",
+        "SessionID": "27",
+        "Session": "2024-2025",
+        "Title": "Support for Deaf Children",
+        "Text": "That this Assembly recognises the negative impact that the lack of specialist Teachers of the Deaf has on deaf children and their families; and calls on the Minister of Education to bring forward plans.",
+        "TabledDate": "2024-09-30T00:00:00+01:00",
+        "PlenaryDate": "2024-10-21T00:00:00+01:00",
+        "PlenaryTypeID": "1",
+        "PlenaryType": "Motion",
+        "MotionCategoryID": "3",
+        "MotionCategory": "Private Members' Motion"
+      },
+      {
+        "DocumentID": "412135",
+        "SessionID": "27",
+        "Session": "2024-2025",
+        "Title": "Fraudulent Activity on Just Eat Platform",
+        "Text": "To ask the Minister for the Economy what measures his Department can take to support businesses impacted by fraudulent activity on the Just Eat platform.",
+        "TabledDate": "2024-09-30T00:00:00+01:00",
+        "PlenaryTypeID": "9",
+        "PlenaryType": "Urgent Oral Question"
+      },
+      {
+        "DocumentID": "409340",
+        "SessionID": "27",
+        "Session": "2024-2025",
+        "Title": "Extension of Sitting on Monday 9 September 2024",
+        "Text": "That, in accordance with Standing Order 10(3A), the sitting on Monday 9 September 2024 be extended.",
+        "TabledDate": "2024-09-09T00:00:00+01:00",
+        "PlenaryDate": "2024-09-09T00:00:00+01:00",
+        "PlenaryTypeID": "1",
+        "PlenaryType": "Motion",
+        "MotionCategoryID": "2",
+        "MotionCategory": "Committee Motion"
+      }
+    ]
+  }
+}

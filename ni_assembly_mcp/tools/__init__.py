@@ -15,6 +15,13 @@ from ni_assembly_mcp.tools.member_detail import (
     list_ministerial_roles,
 )
 from ni_assembly_mcp.tools.members import search_members
+from ni_assembly_mcp.tools.plenary import (
+    get_business_diary,
+    get_divisions,
+    get_motion_context,
+    get_no_day_named_motions,
+    search_plenary_business,
+)
 from ni_assembly_mcp.tools.questions import get_question_details, search_parliamentary_questions
 from ni_assembly_mcp.tools.reference import (
     get_constituencies,
@@ -42,6 +49,12 @@ ALL_TOOLS: list[Callable] = [
     # Phase 4 — parliamentary questions
     search_parliamentary_questions,
     get_question_details,
+    # Phase 5 — plenary business & divisions
+    search_plenary_business,
+    get_business_diary,
+    get_divisions,
+    get_motion_context,
+    get_no_day_named_motions,
 ]
 
 __all__ = ["ALL_TOOLS"]

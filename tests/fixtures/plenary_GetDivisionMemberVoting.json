@@ -1,0 +1,26 @@
+{
+  "MemberVoting": {
+    "Member": [
+      {
+        "DocumentID": "409547",
+        "EventID": "17167",
+        "PersonID": "5800",
+        "MemberName": "Dr Caoimhe Archibald",
+        "Vote": "AYE",
+        "Designation": "Nationalist",
+        "VoteInVacancy": "false",
+        "MemberSortName": "ArchibaldCaoimhe"
+      },
+      {
+        "DocumentID": "409547",
+        "EventID": "17167",
+        "PersonID": "5797",
+        "MemberName": "Dr Steve Aiken OBE",
+        "Vote": "NO",
+        "Designation": "Unionist",
+        "VoteInVacancy": "false",
+        "MemberSortName": "AikenSteveOBE"
+      }
+    ]
+  }
+}

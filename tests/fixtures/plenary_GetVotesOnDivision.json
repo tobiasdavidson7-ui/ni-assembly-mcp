@@ -1,0 +1,26 @@
+{
+  "DivisionList": {
+    "Division": [
+      {
+        "EventID": "17151",
+        "SessionID": "27",
+        "DivisionSubject": "Removing the Barriers to Green Growth - Amendment 1",
+        "DivisionDate": "2024-09-17T16:37:19.64+01:00",
+        "DocumentID": "409950",
+        "DivisonType": "Simple Majority",
+        "DivisionResult": "https://data.niassembly.gov.uk/plenary.asmx/GetDivisionResult?documentId=409950",
+        "MemberVoting": "https://data.niassembly.gov.uk/plenary.asmx/GetDivisionMemberVoting?documentId=409950"
+      },
+      {
+        "EventID": "17167",
+        "SessionID": "27",
+        "DivisionSubject": "Final Stage: Budget (No. 2) Bill (NIA Bill 06/22-27)",
+        "DivisionDate": "2024-09-23T13:39:27.543+01:00",
+        "DocumentID": "409547",
+        "DivisonType": "Cross-Community",
+        "DivisionResult": "https://data.niassembly.gov.uk/plenary.asmx/GetDivisionResult?documentId=409547",
+        "MemberVoting": "https://data.niassembly.gov.uk/plenary.asmx/GetDivisionMemberVoting?documentId=409547"
+      }
+    ]
+  }
+}

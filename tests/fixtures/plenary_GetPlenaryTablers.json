@@ -1,0 +1,20 @@
+{
+  "TablerList": {
+    "Tabler": [
+      {
+        "DocumentID": "412048",
+        "TablerSequence": "2",
+        "TablerPersonID": "6157",
+        "TablerName": "Mr John Stewart",
+        "TablerTitle": "MLA - East Antrim"
+      },
+      {
+        "DocumentID": "412048",
+        "TablerSequence": "1",
+        "TablerPersonID": "5808",
+        "TablerName": "Mr Robbie Butler",
+        "TablerTitle": "MLA - Lagan Valley"
+      }
+    ]
+  }
+}

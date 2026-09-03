@@ -1,0 +1,15 @@
+{
+  "MotionBill": {
+    "Bill": {
+      "DocumentID": "407230",
+      "ParentDocumentID": "409547",
+      "ReferenceNumber": "NIA Bill 6/22-27",
+      "BillType": "Executive Bill",
+      "BillName": "NIA Bill 6/22-27 - Budget (No. 2) Bill",
+      "ShortTitle": "Budget (No. 2) Bill",
+      "LongTitle": "A Bill to authorise the use for the public service of certain resources for the year ending 31 March 2025.",
+      "Stage": "Final Stage",
+      "IsAcceleratedPassage": "true"
+    }
+  }
+}

@@ -7,9 +7,9 @@ Ported from [`i-dot-ai/parliament-mcp`](https://github.com/i-dot-ai/parliament-m
 (MIT, © 2025 i.AI). See [`PLAN.md`](PLAN.md) for the porting design and phase plan,
 and [`NOTICE`](NOTICE) for attribution.
 
-> Status: **early development.** Phase 3 (member detail, roles, register). The
-> server runs and exposes the tools below; questions, plenary and Hansard tools
-> are still to come (see [`PLAN.md`](PLAN.md) §4).
+> Status: **early development.** Phase 5 (plenary business & divisions) complete.
+> The server runs and exposes the tools below; Hansard search tools are still to
+> come (see [`PLAN.md`](PLAN.md) §4).
 
 This project is **not affiliated with the Northern Ireland Assembly** or with
 mySociety / TheyWorkForYou.
@@ -29,6 +29,13 @@ mySociety / TheyWorkForYou.
 | `get_registered_interests` | Register of Members' Interests, filterable by member or category |
 | `list_ministerial_roles` | Current ministerial roles and their holders (the present Executive) |
 | `get_state_of_the_parties` | Seat counts by party, now or on a given date |
+| `search_parliamentary_questions` | Written/oral questions by keyword, member, department or date (substring, not semantic) |
+| `get_question_details` | One question's full record, including the answer text |
+| `search_plenary_business` | Tabled plenary items — motions, amendments, statements, urgent oral questions |
+| `get_business_diary` | Sittings, committee meetings and events between two dates |
+| `get_divisions` | Recorded votes: a date-range list, or one division's result + per-member voting |
+| `get_motion_context` | A motion's details + tablers + amendments + linked Bill + Petition of Concern |
+| `get_no_day_named_motions` | Motions tabled with no scheduled debate date |
 
 ## Running the server
 
