@@ -101,11 +101,15 @@ default to XDG locations and are overridable by environment variable:
 
 | Env var | Default | Holds |
 |---|---|---|
-| `NI_ASSEMBLY_MCP_INDEX_DB_PATH` | `~/.local/share/ni-assembly-mcp/index.db` | the Hansard FTS5 index (see below) |
+| `NI_ASSEMBLY_MCP_INDEX_DB_PATH` | `~/.local/share/ni-assembly-mcp/index.db` | the FTS5 search index — Hansard and/or questions (see below) |
 | `NI_ASSEMBLY_MCP_HISHEL_CACHE_DIR` | `~/.cache/ni-assembly-mcp/http` | the on-disk HTTP cache (1-day TTL) for `data.niassembly.gov.uk` responses |
 
 (`XDG_DATA_HOME` / `XDG_CACHE_HOME` are honoured for the base directory.) In
 Docker these live under `/data` and are backed by named volumes — see below.
+
+**Sizing:** a full Hansard index is roughly 0.3–0.5 GB; adding the questions
+index (`index questions`, which stores answer text) adds a further **~0.4–0.6 GB**
+to `index.db`. Size the `index` volume for both if you build both.
 
 ## Hosting over HTTP (Docker)
 
@@ -125,25 +129,31 @@ Point HTTP-capable MCP clients at `http://<host>:8000/mcp/`. Override the
 published port with `NI_ASSEMBLY_MCP_PORT` and the refresh cadence with
 `NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS` (default 86400).
 
-## Building the Hansard index
+## Building the search index
 
-`search_debate_titles`, `search_contributions` and `find_relevant_contributors`
-read a local SQLite FTS5 index — the NI Assembly API has no Hansard search. The
-index is built **offline**; the server never builds it in a request.
+Several tools read a local SQLite FTS5 index, built **offline** — the server
+never builds it in a request. Two independent parts share one `index.db`:
+
+| Command | Feeds | Source |
+|---|---|---|
+| `ni-assembly-mcp index hansard` | `search_debate_titles`, `search_contributions`, `find_relevant_contributors` | TheyWorkForYou bulk XML (1998→present) + a NI-API freshness top-up |
+| `ni-assembly-mcp index questions` | a stemmed, BM25-ranked, answer-text-aware path for `search_parliamentary_questions` | the four `questions.asmx` range endpoints (2007→present) |
 
 ```bash
-ni-assembly-mcp index hansard --full   # first build: TheyWorkForYou bulk XML, 1998->present
-ni-assembly-mcp index hansard          # incremental refresh (run periodically, e.g. daily)
-ni-assembly-mcp index status           # row counts + last refresh
+ni-assembly-mcp index hansard --full     # first build
+ni-assembly-mcp index questions --full   # first build
+ni-assembly-mcp index hansard            # incremental refresh (schedule it; cheap)
+ni-assembly-mcp index questions          # incremental refresh (re-scans a trailing 60-day window)
+ni-assembly-mcp index status             # row counts + last refresh for both
 ```
 
-Hansard is ingested from [TheyWorkForYou's bulk XML](https://www.theyworkforyou.com/pwdata/scrapedxml/ni/)
-(no API key), with speaker→`PersonId` mapping from mySociety's `parlparse`, plus a
-short freshness top-up from the NI data API. The index lives at
-`NI_ASSEMBLY_MCP_INDEX_DB_PATH` (see [Persistent paths](#persistent-paths)).
+Hansard's speaker→`PersonId` mapping comes from mySociety's `parlparse`. The
+questions index needs no mapping — `TablerPersonId` is the NI PersonId in every
+source endpoint. The index lives at `NI_ASSEMBLY_MCP_INDEX_DB_PATH` (see
+[Persistent paths](#persistent-paths)).
 
-The incremental refresh only fetches TWFY scrape files changed since the last
-run, so it is cheap — schedule it, don't re-run `--full`.
+Both incremental refreshes are cheap (changed files / a 60-day window) — schedule
+them, don't re-run `--full`.
 
 **Do not redistribute a built `index.db`** — it embeds TWFY-derived identifiers
 that are CC BY-SA 2.5 (ShareAlike). Distribute the builder only.

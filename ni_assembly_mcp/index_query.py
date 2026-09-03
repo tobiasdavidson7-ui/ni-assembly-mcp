@@ -6,6 +6,7 @@ tool layer imports only what it queries. Phase 6b shipped one query —
 :func:`distinct_headings`, behind :class:`HansardSearchBackend` — for
 ``search_debate_titles``. Phase 6c adds :func:`search_contributions` (BM25 full-
 text over spoken bodies) and :func:`rank_contributors` (PLAN.md §6.3 / §6.4).
+Phase 9 adds :func:`search_questions` (BM25 over question **and answer** text).
 
 **Contributor scoring (§6.4) is a v1 heuristic.** ``rank_contributors`` scores a
 member as ``sum(w_i)`` where ``w_i = -bm25(hit_i)`` -- BM25-weighted volume,
@@ -55,6 +56,25 @@ _CONTRIB_COLUMNS = (
 )
 _NOQUERY_SNIPPET_CHARS = 400  # leading-text fallback when there is no MATCH
 
+# ``question`` columns returned by :func:`search_questions` (answer_text is
+# excluded — it can be long; the ``snippet`` covers it and get_question_details
+# has the full text). ``question_fts`` column order: 0 question_text, 1 answer_text.
+_QUESTION_COLUMNS = (
+    "document_id",
+    "reference",
+    "document_type",
+    "tabled_date",
+    "answered_on_date",
+    "question_text",
+    "tabler_person_id",
+    "department_name",
+)
+# -1 = snippet from the leftmost column that has a phrase match (question_text or
+# answer_text), so a question-only hit still yields a snippet.
+_QUESTION_SNIPPET_COL = -1
+_QUESTION_ORAL_TYPE = "Question for Oral Answer"
+_QUESTION_WRITTEN_TYPE = "Question for Written Answer"
+
 
 def _date_clause(date_from: str | None, date_to: str | None, params: list, *, col: str = "c.debate_date") -> str:
     sql = ""
@@ -88,14 +108,19 @@ def index_status(conn: sqlite3.Connection) -> dict:
     date_lo, date_hi = conn.execute(
         "SELECT min(debate_date), max(debate_date) FROM contribution"
     ).fetchone()
+    q_lo, q_hi = conn.execute("SELECT min(tabled_date), max(tabled_date) FROM question").fetchone()
     state = dict(conn.execute("SELECT key, value FROM ingest_state").fetchall())
     return {
         "contributions": contributions,
         "questions": questions,
         "debate_date_min": date_lo,
         "debate_date_max": date_hi,
+        "question_tabled_min": q_lo,
+        "question_tabled_max": q_hi,
         "hansard_last_refresh": state.get("hansard_last_refresh"),
         "hansard_cursor": state.get("hansard_cursor"),
+        "questions_last_refresh": state.get("questions_last_refresh"),
+        "questions_cursor": state.get("questions_cursor"),
     }
 
 
@@ -278,6 +303,78 @@ def rank_contributors(
         }
         for g in ranked
     ]
+
+
+def _question_row(r: sqlite3.Row, *, scored: bool) -> dict:
+    row = {col: r[col] for col in _QUESTION_COLUMNS}
+    row["snippet"] = (r["snippet"] or "").strip()
+    row["relevance_score"] = round(-r["rank"], 4) if scored else None
+    return row
+
+
+def search_questions(
+    conn: sqlite3.Connection,
+    query: str | None,
+    *,
+    member_id: int | None = None,
+    department: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    oral: bool | None = None,
+    answered_only: bool = False,
+    limit: int = 50,
+) -> list[dict]:
+    """Full-text search over parliamentary questions (PLAN.md Phase 9 / §6.1).
+
+    With ``query`` set: BM25-ranked (Porter-stemmed) match over **question text
+    and answer text** — the live ``GetQuestionsBySearchText`` endpoint searches
+    the question text only. With no ``query``: rows matching the filters,
+    newest-tabled first, ``relevance_score = None``.
+
+    All filters are plain SQL and — unlike the live tool — combine freely and
+    apply across the whole 2007→present corpus (``tabler_person_id`` is the NI
+    PersonId in every source endpoint): ``member_id`` → tabler, ``department`` →
+    substring on the answering department, ``date_from`` / ``date_to`` → tabled
+    date (``YYYY-MM-DD``), ``oral`` → written/oral split, ``answered_only`` →
+    has an answer date. ``answer_text`` is not returned (it can be long — the
+    ``snippet`` covers it, ``get_question_details`` has the full text).
+    """
+    match = build_match_query(query or "")
+    select_cols = ", ".join(f"q.{c}" for c in _QUESTION_COLUMNS)
+
+    fparams: list = []
+    filters = _date_clause(date_from, date_to, fparams, col="q.tabled_date")
+    if member_id is not None:
+        filters += " AND q.tabler_person_id = ?"
+        fparams.append(member_id)
+    if department:
+        filters += " AND q.department_name LIKE '%' || ? || '%'"
+        fparams.append(department)
+    if oral is True:
+        filters += " AND q.document_type = ?"
+        fparams.append(_QUESTION_ORAL_TYPE)
+    elif oral is False:
+        filters += " AND q.document_type = ?"
+        fparams.append(_QUESTION_WRITTEN_TYPE)
+    if answered_only:
+        filters += " AND q.answered_on_date IS NOT NULL"
+
+    if match is None:
+        sql = (
+            f"SELECT {select_cols}, "
+            f"substr(q.answer_text, 1, {_NOQUERY_SNIPPET_CHARS}) AS snippet, 0 AS rank "
+            f"FROM question q WHERE 1=1{filters} ORDER BY q.tabled_date DESC LIMIT ?"
+        )
+        return [_question_row(r, scored=False) for r in conn.execute(sql, [*fparams, limit]).fetchall()]
+
+    sql = (
+        f"SELECT {select_cols}, "
+        f"snippet(question_fts, {_QUESTION_SNIPPET_COL}, '', '', '…', {_SNIPPET_TOKENS}) AS snippet, "
+        "bm25(question_fts, 1.0, 1.0) AS rank "
+        "FROM question_fts f JOIN question q ON q.rowid = f.rowid "
+        f"WHERE f.question_fts MATCH ?{filters} ORDER BY rank LIMIT ?"
+    )
+    return [_question_row(r, scored=True) for r in conn.execute(sql, [match, *fparams, limit]).fetchall()]
 
 
 class HansardSearchBackend(Protocol):

@@ -20,9 +20,13 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, default=8000, help="Port for --http (default: 8000).")
 
     index = sub.add_parser("index", help="Build or refresh the local search index (offline).")
-    # 'hansard' builds/refreshes; 'status' just prints counts. 'questions' arrives in a later phase.
-    index.add_argument("source", choices=["hansard", "status"])
-    index.add_argument("--full", action="store_true", help="Full rebuild from 1998 (default: incremental).")
+    # 'hansard' / 'questions' build/refresh their table; 'status' just prints counts.
+    index.add_argument("source", choices=["hansard", "questions", "status"])
+    index.add_argument(
+        "--full",
+        action="store_true",
+        help="Full rebuild (Hansard from 1998, questions from 2007; default: incremental).",
+    )
     index.add_argument("--since", help="Override the incremental cursor: a YYYY-MM-DD date or a unix timestamp.")
     index.add_argument("--db", help="Index DB path (default: $NI_ASSEMBLY_MCP_INDEX_DB_PATH or the XDG data dir).")
     return parser

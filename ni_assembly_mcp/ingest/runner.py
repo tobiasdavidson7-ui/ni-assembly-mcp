@@ -1,4 +1,9 @@
-"""Orchestration for ``ni-assembly-mcp index`` (PLAN.md Phase 6b commit 2).
+"""Orchestration for ``ni-assembly-mcp index`` (PLAN.md Phase 6b commit 2 / Phase 9).
+
+Questions flow (:func:`run_questions_index`, Phase 9): walk the four
+``questions.asmx`` range endpoints in 6-month windows into the ``question`` table;
+checkpoint ``questions_cursor``; incremental runs re-scan a trailing 60-day
+window for late-arriving answers.
 
 Hansard flow:
 
@@ -29,9 +34,11 @@ from ni_assembly_mcp.index_db import (
     open_index,
     set_state,
     upsert_contributions,
+    upsert_questions,
 )
-from ni_assembly_mcp.ingest.http import PoliteFetcher
+from ni_assembly_mcp.ingest.http import PoliteFetcher, indexer_config
 from ni_assembly_mcp.ingest.people_map import load_person_map
+from ni_assembly_mcp.ingest.questions import QUESTIONS_FLOOR, fetch_window, question_windows
 from ni_assembly_mcp.ingest.twfy import changed_since, date_of, list_scrape_files, parse_scrape_file
 from ni_assembly_mcp.niassembly_client import niassembly_get
 from ni_assembly_mcp.settings import Settings, settings
@@ -209,6 +216,58 @@ def _niapi_row(
     }
 
 
+# Questions: every incremental run also re-scans this trailing window, because an
+# answer (and AnsweredOnDate) lands days-to-weeks after the question is tabled.
+_QUESTIONS_REFRESH_DAYS = 60
+
+
+def _date_from_since(since: str | None) -> date | None:
+    """``--since`` as a date: a ``YYYY-MM-DD`` string, or a unix ts (UTC date)."""
+    if not since:
+        return None
+    if since.isdigit():
+        return datetime.fromtimestamp(int(since), tz=UTC).date()
+    return date.fromisoformat(since)
+
+
+async def run_questions_index(
+    conn: sqlite3.Connection, *, full: bool, since: str | None = None, config: Settings | None = None
+) -> dict:
+    """Fill the ``question`` table from the four ``questions.asmx`` range endpoints.
+
+    ``full`` (or ``--since``) walks 6-month windows from the 2007 floor; an
+    incremental run resumes from the ``questions_cursor`` checkpoint but always
+    re-scans the trailing 60 days for late-arriving answers. A window failure
+    raises (``NIAssemblyAPIError``) and aborts — the checkpoint means the next run
+    resumes rather than restarting.
+    """
+    config = config or settings
+    qconfig = indexer_config(config)
+    today = datetime.now(tz=UTC).date()
+
+    since_date = _date_from_since(since)
+    if full or since_date is not None:
+        start = since_date or QUESTIONS_FLOOR
+    else:
+        cursor = get_state(conn, "questions_cursor")
+        start = date.fromisoformat(cursor) if cursor else QUESTIONS_FLOOR
+        start = min(start, today - timedelta(days=_QUESTIONS_REFRESH_DAYS))
+
+    windows = question_windows(start, today)
+    logger.info("questions: %d window(s) from %s", len(windows), start)
+    total = 0
+    for window_from, window_to in windows:
+        rows = await fetch_window(window_from, window_to, config=qconfig)
+        with conn:
+            total += upsert_questions(conn, rows)
+            set_state(conn, "questions_cursor", window_to)
+
+    with conn:
+        set_state(conn, "questions_last_refresh", _now())
+
+    return {"windows": len(windows), "questions": total}
+
+
 async def run_index_cli(source: str, *, full: bool, since: str | None, db: str | None) -> None:
     from pathlib import Path
 
@@ -220,6 +279,13 @@ async def run_index_cli(source: str, *, full: bool, since: str | None, db: str |
 
             for key, value in index_status(conn).items():
                 print(f"{key:24} {value}")
+            return
+        if source == "questions":
+            result = await run_questions_index(conn, full=full, since=since, config=config)
+            print(
+                f"questions index: {result['windows']} window(s), {result['questions']} row(s) "
+                f"-> {config.index_db_path}"
+            )
             return
         result = await run_hansard_index(conn, full=full, since=since, config=config)
         print(

@@ -9,9 +9,11 @@ from __future__ import annotations
 import pytest
 
 from ni_assembly_mcp.index_db import open_index
-from ni_assembly_mcp.index_query import distinct_headings
+from ni_assembly_mcp.index_query import distinct_headings, search_questions
 from ni_assembly_mcp.ingest.http import PoliteFetcher
 from ni_assembly_mcp.ingest.people_map import load_person_map
+from ni_assembly_mcp.ingest.questions import fetch_window
+from ni_assembly_mcp.ingest.runner import run_questions_index
 from ni_assembly_mcp.ingest.twfy import parse_scrape_file
 from ni_assembly_mcp.niassembly_client import niassembly_get
 from ni_assembly_mcp.tools.committees import get_committee_agenda
@@ -178,6 +180,38 @@ async def test_hansard_index_one_real_scrape_file(test_settings):
         # a word taken from a real heading must be findable (stemmed)
         term = next(h["major_heading"] for h in all_headings if h["major_heading"]).split()[0]
         assert distinct_headings(conn, term, date_from="2026-06-01", date_to="2026-07-01", limit=20)
+    finally:
+        conn.close()
+
+
+async def test_questions_index_one_real_window(test_settings):
+    """Fetch one real 2-month questions window, index it, and search question + answer text."""
+    rows = await fetch_window("2025-05-01", "2025-07-01", config=test_settings)
+    assert len(rows) > 500
+    assert any(r["answer_text"] for r in rows)  # AnsweredInRange carries answer text inline
+    assert any(r["tabler_person_id"] for r in rows)  # PersonId present without any mapping
+
+    conn = open_index(test_settings.index_db_path)
+    try:
+        from ni_assembly_mcp.index_db import upsert_questions
+
+        upsert_questions(conn, rows)
+        conn.commit()
+        hits = search_questions(conn, "health", date_from="2025-05-01", date_to="2025-07-01", limit=20)
+        assert hits and all(h["relevance_score"] is not None for h in hits)
+        assert "answer_text" not in hits[0]
+    finally:
+        conn.close()
+
+
+async def test_run_questions_index_incremental_live(test_settings):
+    """A trailing-window incremental run against the live API populates the table."""
+    conn = open_index(test_settings.index_db_path)
+    try:
+        result = await run_questions_index(conn, full=False, since="2025-06-01", config=test_settings)
+        assert result["questions"] > 0
+        (count,) = conn.execute("SELECT count(*) FROM question").fetchone()
+        assert count > 0
     finally:
         conn.close()
 

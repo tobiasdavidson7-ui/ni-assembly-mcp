@@ -286,6 +286,72 @@ proves insufficient, re-adds Azure OpenAI + a container.
 - `NOTICE` updated (TWFY entry no longer "planned"); `LICENSE` retained (§5d). `questions` index
   bootstrap still deferred with the rest of the questions-FTS5 work.
 
+### Phase 9 — Questions FTS5 index + index-backed `search_parliamentary_questions`
+
+Finishes the deferred half of §6.5 pt 2 (`ni-assembly-mcp index {hansard,questions}`) and the
+§6.1 / Phase 4 note that "once the PQ index exists, `search_parliamentary_questions` gains an
+index-backed path — stemmed/BM25 ranking **and** answer-text search, which the live
+`GetQuestionsBySearchText` endpoint cannot do". Mirrors the 6b/6c two-commit pattern.
+
+**Live-API behaviour verified 2026-09-03** (drives the design):
+- `GetQuestionsForWrittenAnswer_AnsweredInRange_JSON` returns the **full record incl.
+  `AnswerPlainText` / `AnswerHtml`**, tabler + minister `PersonId`, `Department`,
+  `AnsweredOnDate` — so the bulk build needs **no per-question `GetQuestionDetails` fan-out**
+  (unlike Hansard). One range call per window populates everything.
+- `TablerPersonId` is the NI `PersonId` directly, present in every range/member/department
+  endpoint (all but the keyword one). **Member/department/date filtering is reliable across the
+  whole 2007→present corpus — no ~2022+ mapping caveat** (that caveat is Hansard-only; it must
+  not be copy-pasted onto the questions tool description).
+- `DocumentType` is a clean `"Question for Oral Answer"` / `"…Written Answer"` split within each
+  endpoint; oral answers have no inline text (`AnswerHansardLink` → the Hansard index covers the
+  spoken answer). The `question` table gains a `document_type` column — **additive, no migration**:
+  Phase 6b created `question` / `question_fts` but nothing ever wrote them, so no questions data
+  exists anywhere to migrate.
+- Corpus starts May 2007 (Assembly restoration; 1998–2002 returns empty). A 5-year range call is
+  a real ~100 MB body on a legacy IIS backend — **window at 6 months** (~10–17 MiB each) for
+  robustness, not because the server refuses.
+- Full build ≈ 4 endpoints × ~38 six-month windows ≈ 150 range calls, ~0.5–1 GiB transfer,
+  ~15 min cold, then hishel-cached. Adds **~0.4–0.6 GB to `index.db`** (answer text; ~180–250k
+  rows). Incremental ≈ trailing-60-day re-scan on all four ≈ 8 calls.
+
+**Commit 1 — questions ingestion + query layer + CLI**
+- `ingest/questions.py` — fetch the 4 range endpoints (`GetQuestionsForWrittenAnswer_{Tabled,
+  Answered}InRange`, `GetQuestionsForOralAnswer_{Tabled,Answered}InRange`) over 6-month windows
+  from a `2007-01-01` floor via `niassembly_get(config=indexer_config(settings))`; parse with the
+  existing `Question` model; store `tabled_date` / `answered_on_date` as `YYYY-MM-DD`.
+- `ingest/runner.py` — `run_questions_index(conn, *, full, since, config)`; checkpoint
+  `questions_cursor` (last completed window end) + `questions_last_refresh` in `ingest_state`;
+  incremental = start from the cursor but always re-scan the trailing 60 days (late-arriving
+  answers). `run_index_cli` dispatches on `source`.
+- `index_db.py` — `upsert_questions(conn, rows)` with a **`COALESCE(excluded.col, question.col)`
+  upsert** so a later answer-less `TabledInRange` row can never clobber an `answer_text` already
+  written by `AnsweredInRange` — **order-independent**, verified by a test that ingests the same
+  `DocumentId` unanswered-then-answered *and* answered-then-unanswered. `question` schema gains
+  `document_type`. `open_index(read_only=True, require_table=…)` parametrised so a questions-only
+  index passes readiness (guard was hard-coded to `contribution`); the "not built" message names
+  the right `index` subcommand.
+- `index_query.py` — `search_questions(conn, query, *, member_id, department, date_from, date_to,
+  oral, answered_only, limit)`: BM25 over `question_fts` (question + answer text), filters as SQL
+  (`tabler_person_id`, `department_name LIKE`, date on `tabled_date`, `document_type`,
+  `answered_on_date IS NOT NULL`); empty query ⇒ filter-only newest-first. `index_status` gains
+  the questions counters/dates.
+- `cli.py` — `questions` added to the `index` subcommand choices.
+
+**Commit 2 — rewire `search_parliamentary_questions` behind a backend protocol (live fallback)**
+- `index_query.py` — `QuestionSearchBackend` Protocol; `Fts5QuestionBackend` (index) +
+  `LiveQuestionBackend` (today's operation-selector logic from `tools/questions.py`, lifted
+  verbatim).
+- `tools/questions.py` — try the FTS5 backend; on `IndexNotBuiltError` fall back to the live
+  backend (**current behaviour exactly — no regression for users who never build the index**).
+  Docstring rewrite: with the index, keyword search covers **answer text**, is Porter-stemmed +
+  BM25-ranked, and all filters combine with no hydration cap; **member/department/date filters
+  are reliable across the full 2007→present corpus** (no Hansard-style recency caveat). Without
+  the index, the existing substring-on-question-text-only limitations stand.
+- Phase 4b (`niassembly_get_answer_html`) drops further in priority — `AnswerPlainText` inline is
+  enough for the index and for `get_question_details`.
+
+Pause for review after commit 1 is green, before commit 2.
+
 ### Dependency graph
 ```
 Phase 0 ─► Phase 1 ─► Phase 2 ─► Phase 3
@@ -297,6 +363,9 @@ Phase 0 ─► Phase 1 ─► Phase 2 ─► Phase 3
 Phase 6a is dropped (2026-09-03) — no standalone live-walk phase; `get_hansard_reports` and
 `search_debate_titles` ship in 6b off the FTS5 index (§6.6 shortcut).
 `search_contributions` / `find_relevant_contributors` (6c) do **not** ship before 6b.
+
+Phase 9 (questions FTS5 index + index-backed `search_parliamentary_questions`) depends only on
+Phase 4; it reuses the 6b index DB / `ingest` / CLI scaffolding but adds no Hansard dependency.
 
 ---
 

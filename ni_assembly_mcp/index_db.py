@@ -14,8 +14,10 @@ Design notes:
   top-up (PLAN.md §6.6). ``speech_id`` is the natural key from both sources.
 * ``contribution_fts`` / ``question_fts`` are external-content FTS5 tables kept in
   sync by triggers (Porter stemming + BM25).
-* ``question`` / ``question_fts`` exist in the schema but nothing writes them
-  yet — the PQ index-backed path is a later phase.
+* ``question`` is one row per ``DocumentId`` from the four ``questions.asmx``
+  range endpoints (written/oral, tabled/answered), merged with a ``COALESCE``
+  upsert so an answer-less ``TabledInRange`` row never clobbers an ``answer_text``
+  from ``AnsweredInRange`` (Phase 9).
 * No data ships in the repo (CC BY-SA 2.5 ShareAlike on the TWFY identifier data
   — builder only; PLAN.md §5d).
 """
@@ -68,6 +70,7 @@ END;
 CREATE TABLE IF NOT EXISTS question (
     document_id       INTEGER PRIMARY KEY,
     reference         TEXT,
+    document_type     TEXT,
     tabled_date       TEXT,
     answered_on_date  TEXT,
     question_text     TEXT,
@@ -75,6 +78,8 @@ CREATE TABLE IF NOT EXISTS question (
     tabler_person_id  INTEGER,
     department_name   TEXT
 );
+CREATE INDEX IF NOT EXISTS ix_question_tabled ON question(tabled_date);
+CREATE INDEX IF NOT EXISTS ix_question_tabler ON question(tabler_person_id);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS question_fts USING fts5(
     question_text, answer_text,
@@ -117,16 +122,39 @@ _CONTRIBUTION_COLUMNS = (
     "body",
 )
 
+# Columns of ``question`` in the order accepted by :func:`upsert_questions`.
+_QUESTION_COLUMNS = (
+    "document_id",
+    "reference",
+    "document_type",
+    "tabled_date",
+    "answered_on_date",
+    "question_text",
+    "answer_text",
+    "tabler_person_id",
+    "department_name",
+)
 
-def open_index(path: Path | str, *, read_only: bool = False) -> sqlite3.Connection:
+# ``read_only`` readiness: which table must be non-empty, and the command to fix it.
+_REQUIRE_TABLE = {
+    "contribution": ("contributions", "ni-assembly-mcp index hansard"),
+    "question": ("questions", "ni-assembly-mcp index questions"),
+}
+
+
+def open_index(
+    path: Path | str, *, read_only: bool = False, require_table: str = "contribution"
+) -> sqlite3.Connection:
     """Open (and, in write mode, create) the FTS5 index at ``path``.
 
     ``read_only=True`` opens with ``mode=ro`` and raises
     :class:`~ni_assembly_mcp.exceptions.IndexNotBuiltError` if the index file is
-    missing or the ``contribution`` table has no rows — the caller (an MCP tool)
-    turns that into a "run the index command" message.
+    missing or ``require_table`` (``"contribution"`` for Hansard tools,
+    ``"question"`` for the PQ path) has no rows — the caller (an MCP tool) turns
+    that into a "run the index command" message.
     """
     path = Path(path)
+    noun, command = _REQUIRE_TABLE[require_table]
 
     if read_only:
         if not path.exists():
@@ -135,14 +163,14 @@ def open_index(path: Path | str, *, read_only: bool = False) -> sqlite3.Connecti
         conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
         try:
-            (count,) = conn.execute("SELECT count(*) FROM contribution").fetchone()
+            (count,) = conn.execute(f"SELECT count(*) FROM {require_table}").fetchone()
         except sqlite3.OperationalError as exc:
             conn.close()
             msg = f"Index at {path} is missing its tables — rebuild it"
             raise IndexNotBuiltError(msg) from exc
         if not count:
             conn.close()
-            msg = f"Index at {path} has no contributions — run: ni-assembly-mcp index hansard"
+            msg = f"Index at {path} has no {noun} — run: {command}"
             raise IndexNotBuiltError(msg)
         return conn
 
@@ -169,6 +197,31 @@ def upsert_contributions(conn: sqlite3.Connection, rows: Iterable[dict]) -> int:
         f"ON CONFLICT(speech_id) DO UPDATE SET {updates}"
     )
     payload = [tuple(row.get(col) for col in _CONTRIBUTION_COLUMNS) for row in rows]
+    if not payload:
+        return 0
+    conn.executemany(sql, payload)
+    return len(payload)
+
+
+def upsert_questions(conn: sqlite3.Connection, rows: Iterable[dict]) -> int:
+    """Insert-or-merge ``question`` rows by ``document_id``. Returns the count.
+
+    The merge is ``col = COALESCE(excluded.col, question.col)`` for every field:
+    a new non-NULL value wins, a new NULL keeps what is already stored. So the
+    four range endpoints can be ingested in any order and a later answer-less
+    ``TabledInRange`` row will not wipe an ``answer_text`` / ``answered_on_date``
+    already written by ``AnsweredInRange``. The FTS mirror is maintained by
+    triggers.
+    """
+    non_pk = [c for c in _QUESTION_COLUMNS if c != "document_id"]
+    placeholders = ", ".join("?" for _ in _QUESTION_COLUMNS)
+    updates = ", ".join(f"{col}=COALESCE(excluded.{col}, question.{col})" for col in non_pk)
+    sql = (
+        f"INSERT INTO question ({', '.join(_QUESTION_COLUMNS)}) "
+        f"VALUES ({placeholders}) "
+        f"ON CONFLICT(document_id) DO UPDATE SET {updates}"
+    )
+    payload = [tuple(row.get(col) for col in _QUESTION_COLUMNS) for row in rows if row.get("document_id") is not None]
     if not payload:
         return 0
     conn.executemany(sql, payload)

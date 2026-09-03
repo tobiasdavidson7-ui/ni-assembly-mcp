@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from ni_assembly_mcp.exceptions import IndexNotBuiltError
-from ni_assembly_mcp.index_db import open_index, set_state, upsert_contributions
+from ni_assembly_mcp.index_db import open_index, set_state, upsert_contributions, upsert_questions
 from ni_assembly_mcp.index_query import (
     Fts5Backend,
     build_match_query,
@@ -11,6 +11,7 @@ from ni_assembly_mcp.index_query import (
     index_status,
     rank_contributors,
     search_contributions,
+    search_questions,
 )
 
 
@@ -220,3 +221,87 @@ def test_fts5_backend_contributions_raises_when_not_built(test_settings):
         Fts5Backend(test_settings).contributions(
             "x", member_id=None, date_from=None, date_to=None, limit=5
         )
+
+
+# --- search_questions --------------------------------------------------------
+
+def _q(document_id: int, **over) -> dict:
+    base = {
+        "document_id": document_id,
+        "reference": f"AQW {document_id}/22-27",
+        "document_type": "Question for Written Answer",
+        "tabled_date": "2025-05-01",
+        "answered_on_date": "2025-05-20",
+        "question_text": "generic question text",
+        "answer_text": None,
+        "tabler_person_id": 100,
+        "department_name": "Department of Education",
+    }
+    base.update(over)
+    return base
+
+
+_Q_ROWS = [
+    _q(1, question_text="To ask about school funding shortfalls", answer_text="the education budget rose slightly",
+       tabler_person_id=100, department_name="Department of Education"),
+    _q(2, question_text="To ask about hospital waiting lists", answer_text="waiting times for surgery fell",
+       tabler_person_id=200, department_name="Department of Health", tabled_date="2025-06-15"),
+    _q(3, question_text="To ask about road maintenance budgets", answer_text=None, answered_on_date=None,
+       tabler_person_id=100, department_name="Department for Infrastructure", tabled_date="2024-01-10",
+       document_type="Question for Oral Answer"),
+]
+
+
+@pytest.fixture
+def q_conn(tmp_path):
+    c = open_index(tmp_path / "q.db")
+    upsert_questions(c, _Q_ROWS)
+    c.commit()
+    yield c
+    c.close()
+
+
+def test_search_questions_matches_answer_text(q_conn):
+    # "budget" appears only in answers (q1) and a question (q3); q3 has no answer text
+    rows = search_questions(q_conn, "budget")
+    assert {r["document_id"] for r in rows} == {1, 3}
+    assert rows[0]["relevance_score"] is not None
+    assert "answer_text" not in rows[0]
+
+
+def test_search_questions_stemmed(q_conn):
+    assert {r["document_id"] for r in search_questions(q_conn, "fund")} == {1}
+
+
+def test_search_questions_member_filter(q_conn):
+    rows = search_questions(q_conn, None, member_id=100)
+    assert {r["document_id"] for r in rows} == {1, 3}
+
+
+def test_search_questions_department_substring(q_conn):
+    rows = search_questions(q_conn, None, department="health")
+    assert {r["document_id"] for r in rows} == {2}
+
+
+def test_search_questions_date_and_oral_and_answered_filters(q_conn):
+    assert {r["document_id"] for r in search_questions(q_conn, None, date_from="2025-01-01")} == {1, 2}
+    assert {r["document_id"] for r in search_questions(q_conn, None, oral=True)} == {3}
+    assert {r["document_id"] for r in search_questions(q_conn, None, oral=False)} == {1, 2}
+    assert {r["document_id"] for r in search_questions(q_conn, None, answered_only=True)} == {1, 2}
+
+
+def test_search_questions_no_query_newest_first(q_conn):
+    rows = search_questions(q_conn, None)
+    assert [r["document_id"] for r in rows] == [2, 1, 3]
+    assert rows[0]["relevance_score"] is None
+
+
+def test_index_status_reports_questions(q_conn):
+    set_state(q_conn, "questions_last_refresh", "2026-09-03T00:00:00Z")
+    set_state(q_conn, "questions_cursor", "2025-07-01")
+    st = index_status(q_conn)
+    assert st["questions"] == 3
+    assert st["question_tabled_min"] == "2024-01-10"
+    assert st["question_tabled_max"] == "2025-06-15"
+    assert st["questions_last_refresh"] == "2026-09-03T00:00:00Z"
+    assert st["questions_cursor"] == "2025-07-01"

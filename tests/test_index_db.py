@@ -11,6 +11,7 @@ from ni_assembly_mcp.index_db import (
     open_index,
     set_state,
     upsert_contributions,
+    upsert_questions,
 )
 
 
@@ -89,6 +90,66 @@ def test_question_fts_triggers_fire(conn):
     )
     (hits,) = conn.execute("SELECT count(*) FROM question_fts WHERE question_fts MATCH 'budget'").fetchone()
     assert hits == 1
+
+
+def _q(document_id: int, **over) -> dict:
+    base = {
+        "document_id": document_id,
+        "reference": "AQW 1/22-27",
+        "document_type": "Question for Written Answer",
+        "tabled_date": "2025-05-01",
+        "answered_on_date": None,
+        "question_text": "To ask about school funding in the Western Trust area.",
+        "answer_text": None,
+        "tabler_person_id": 5793,
+        "department_name": "Department of Education",
+    }
+    base.update(over)
+    return base
+
+
+def test_upsert_questions_inserts_and_syncs_fts(conn):
+    assert upsert_questions(conn, [_q(1, answer_text="the budget was allocated in full")]) == 1
+    hits = conn.execute("SELECT count(*) FROM question_fts WHERE question_fts MATCH 'allocated'").fetchone()[0]
+    assert hits == 1
+
+
+def test_upsert_questions_skips_rows_without_document_id(conn):
+    assert upsert_questions(conn, [_q(None), _q(2)]) == 1
+    assert conn.execute("SELECT count(*) FROM question").fetchone()[0] == 1
+
+
+def test_upsert_questions_answer_wins_tabled_then_answered(conn):
+    # TabledInRange first (no answer), AnsweredInRange later (with answer).
+    upsert_questions(conn, [_q(10, answered_on_date=None, answer_text=None)])
+    upsert_questions(conn, [_q(10, answered_on_date="2025-05-20", answer_text="Funding rose by 4%.")])
+    row = conn.execute("SELECT answer_text, answered_on_date FROM question WHERE document_id = 10").fetchone()
+    assert row["answer_text"] == "Funding rose by 4%."
+    assert row["answered_on_date"] == "2025-05-20"
+
+
+def test_upsert_questions_answer_wins_answered_then_tabled(conn):
+    # Same DocumentId seen the other way round (adjacent-window re-scan): the
+    # answer-less TabledInRange row must NOT clobber the stored answer.
+    upsert_questions(conn, [_q(11, answered_on_date="2025-05-20", answer_text="Funding rose by 4%.")])
+    upsert_questions(conn, [_q(11, answered_on_date=None, answer_text=None)])
+    row = conn.execute("SELECT answer_text, answered_on_date FROM question WHERE document_id = 11").fetchone()
+    assert row["answer_text"] == "Funding rose by 4%."
+    assert row["answered_on_date"] == "2025-05-20"
+    # and the FTS mirror reflects the retained answer
+    hits = conn.execute("SELECT count(*) FROM question_fts WHERE question_fts MATCH 'Funding'").fetchone()[0]
+    assert hits == 1
+
+
+def test_read_only_open_requires_named_table(tmp_path):
+    w = open_index(tmp_path / "index.db")
+    upsert_contributions(w, [_row("s1", "2026-06-30")])  # hansard rows only
+    w.commit()
+    w.close()
+    # contribution-backed readiness passes; question-backed does not
+    open_index(tmp_path / "index.db", read_only=True, require_table="contribution").close()
+    with pytest.raises(IndexNotBuiltError, match="no questions"):
+        open_index(tmp_path / "index.db", read_only=True, require_table="question")
 
 
 def test_state_round_trip(conn):
