@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     index_db_path: Path = Field(
         default_factory=lambda: _xdg("XDG_DATA_HOME", ".local/share") / "ni-assembly-mcp" / "index.db"
     )
+    # How often the index-refresh container (docker-compose.yaml) re-runs
+    # `index hansard`. Field name mirrors that container's own
+    # NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS env var (no "index_" prefix) so
+    # the two stay in sync automatically; `/healthz` judges staleness against
+    # this same cadence instead of a hardcoded guess.
+    refresh_interval_seconds: int = 86400
 
     # --- offline indexer (PLAN.md §6.6 / §6.5 pt 4) ---
     # Hansard is ingested from TheyWorkForYou's static bulk XML (no API key); the NI

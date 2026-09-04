@@ -33,7 +33,26 @@ logger = logging.getLogger(__name__)
 
 
 async def _healthz(_request: Request) -> JSONResponse:
-    return JSONResponse({"status": "ok"})
+    """Liveness probe. Always 200 -- the process being up and the Hansard index
+    being fresh are different failure modes (see ``index_health``'s docstring),
+    so a stale index must never trip container-restart logic that can't fix it.
+
+    An external uptime check can still watch ``index_hansard_stale`` in the body
+    (e.g. a keyword monitor alerting on ``"index_hansard_stale": true``) to catch
+    a silently-failing refresh loop without conflating it with the site being down.
+    """
+    from ni_assembly_mcp.index_query import index_health
+
+    health = index_health()
+    return JSONResponse(
+        {
+            "status": "ok",
+            "index_present": health["present"],
+            "index_hansard_last_refresh": health["hansard_last_refresh"],
+            "index_hansard_stale": health["hansard_stale"],
+            "index_questions_last_refresh": health["questions_last_refresh"],
+        }
+    )
 
 
 def _register_routes(server: MCPServer) -> None:

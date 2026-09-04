@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from ni_assembly_mcp.exceptions import IndexNotBuiltError
@@ -8,11 +10,13 @@ from ni_assembly_mcp.index_query import (
     Fts5Backend,
     build_match_query,
     distinct_headings,
+    index_health,
     index_status,
     rank_contributors,
     search_contributions,
     search_questions,
 )
+from ni_assembly_mcp.settings import Settings
 
 
 def _row(
@@ -91,6 +95,33 @@ def test_index_status(conn):
     assert st["debate_date_min"] == "2026-03-04"
     assert st["debate_date_max"] == "2026-06-30"
     assert st["hansard_last_refresh"] == "2026-09-03T00:00:00Z"
+
+
+def test_index_health_reports_absent_before_any_index(tmp_path):
+    health = index_health(Settings(index_db_path=tmp_path / "nope.db"))
+    assert health == {
+        "present": False,
+        "hansard_last_refresh": None,
+        "hansard_stale": None,
+        "questions_last_refresh": None,
+    }
+
+
+def test_index_health_fresh_refresh_is_not_stale(conn, test_settings):
+    set_state(conn, "hansard_last_refresh", datetime.now(tz=UTC).isoformat())
+    conn.commit()
+    health = index_health(test_settings)
+    assert health["present"] is True
+    assert health["hansard_stale"] is False
+
+
+def test_index_health_flags_a_refresh_older_than_twice_the_interval(conn, test_settings):
+    stale_settings = test_settings.model_copy(update={"refresh_interval_seconds": 3600})
+    old_refresh = (datetime.now(tz=UTC) - timedelta(hours=3)).isoformat()
+    set_state(conn, "hansard_last_refresh", old_refresh)
+    conn.commit()
+    health = index_health(stale_settings)
+    assert health["hansard_stale"] is True
 
 
 def test_fts5_backend_reads_configured_path(test_settings):

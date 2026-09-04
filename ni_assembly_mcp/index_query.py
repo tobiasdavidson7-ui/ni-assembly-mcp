@@ -30,7 +30,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
-from ni_assembly_mcp.exceptions import NIAssemblyAPIError
+from ni_assembly_mcp.exceptions import IndexNotBuiltError, NIAssemblyAPIError
 from ni_assembly_mcp.index_db import open_index
 from ni_assembly_mcp.models import Member, Organisation, Question, coerce_records
 from ni_assembly_mcp.niassembly_client import niassembly_get
@@ -134,6 +134,41 @@ def index_status(conn: sqlite3.Connection) -> dict:
         "hansard_cursor": state.get("hansard_cursor"),
         "questions_last_refresh": state.get("questions_last_refresh"),
         "questions_cursor": state.get("questions_cursor"),
+    }
+
+
+def index_health(config: Settings | None = None) -> dict:
+    """Freshness snapshot for ``/healthz`` -- never raises.
+
+    ``hansard_stale`` compares ``hansard_last_refresh`` against
+    ``config.refresh_interval_seconds`` (the index-refresh container's own
+    cadence, docker-compose.yaml): stale once the last successful refresh is more
+    than twice that interval old, so one missed cycle doesn't false-positive but
+    two in a row does. ``None`` (not ``False``) before the index has ever been
+    built or refreshed -- an uptime monitor should treat that as "unknown", not
+    "fresh". Questions has no automated refresh loop (PLAN.md), so only its raw
+    timestamp is reported, with no staleness verdict.
+    """
+    config = config or settings
+    try:
+        conn = open_index(config.index_db_path, read_only=True)
+    except IndexNotBuiltError:
+        return {"present": False, "hansard_last_refresh": None, "hansard_stale": None, "questions_last_refresh": None}
+    try:
+        status = index_status(conn)
+    finally:
+        conn.close()
+
+    hansard_last_refresh = status["hansard_last_refresh"]
+    stale = None
+    if hansard_last_refresh:
+        age_seconds = (datetime.now(tz=UTC) - datetime.fromisoformat(hansard_last_refresh)).total_seconds()
+        stale = age_seconds > 2 * config.refresh_interval_seconds
+    return {
+        "present": True,
+        "hansard_last_refresh": hansard_last_refresh,
+        "hansard_stale": stale,
+        "questions_last_refresh": status["questions_last_refresh"],
     }
 
 

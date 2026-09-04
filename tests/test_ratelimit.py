@@ -110,7 +110,12 @@ def http_settings() -> Settings:
 def test_build_http_app_serves_healthz(http_settings):
     with TestClient(build_http_app(host="127.0.0.1", config=http_settings)) as client:
         r = client.get("/healthz")
-        assert r.status_code == 200 and r.json() == {"status": "ok"}
+        body = r.json()
+        assert r.status_code == 200
+        assert body["status"] == "ok"
+        # No index built in this tmp-dir test settings -> reported absent, not an error.
+        assert body["index_present"] is False
+        assert body["index_hansard_stale"] is None
 
 
 def test_rate_limit_sits_in_front_of_the_mcp_transport(http_settings):
