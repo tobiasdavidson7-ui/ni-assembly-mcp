@@ -1,21 +1,22 @@
 {% extends "base.html" %}
 {% block title %}{{ spec.title }} — NI Assembly Open Data{% endblock %}
 {% block content %}
-<p><a href="/">&larr; all forms</a></p>
+<p class="crumb"><a href="/">&larr; all forms</a></p>
 <h1>{{ spec.title }}</h1>
 <p class="summary">{{ spec.summary }}</p>
 
 {% if errors %}
 <div class="errors">
+  <p class="errors-label">Couldn't run this query</p>
   <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
 </div>
 {% endif %}
 
 <form class="query" method="post" action="/forms/{{ spec.name }}">
   {% for field in spec.fields %}
-  <div>
+  <div class="field">
     <label for="f-{{ field.name }}">
-      {{ field.label }}{% if field.required %} <span title="required">*</span>{% endif %}
+      {{ field.label }}{% if field.required %} <span class="required" title="required">*</span>{% endif %}
       {% if field.help %}<span class="help">{{ field.help }}</span>{% endif %}
     </label>
     {% if field.kind == "bool" %}
@@ -38,27 +39,29 @@
     {% endif %}
   </div>
   {% endfor %}
-  <div><button type="submit">Run</button></div>
+  <div class="field field-submit"><button type="submit">Run query</button></div>
 </form>
 
 {% if result %}
 <div class="result">
   {% if result.kind == "message" %}
-    <p>{{ result.text }}</p>
+    <p class="result-message">{{ result.text }}</p>
   {% elif result.kind == "record" %}
-    <div class="tablewrap"><table>
+    <dl class="record-card">
       {% for key, value in result.pairs %}
-      <tr><th>{{ key }}</th><td>{{ value }}</td></tr>
+      <div class="record-row"><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
       {% endfor %}
-    </table></div>
+    </dl>
   {% elif result.kind == "table" %}
-    <p>{{ result.count }} row{{ "s" if result.count != 1 }}.</p>
-    <div class="tablewrap"><table>
-      <tr>{% for col in result.columns %}<th>{{ col }}</th>{% endfor %}</tr>
-      {% for row in result.rows %}
-      <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
-      {% endfor %}
-    </table></div>
+    <p class="result-count">{{ result.count }} row{{ "s" if result.count != 1 }}.</p>
+    <div class="tablewrap">
+      <table>
+        <tr><th class="idx">#</th>{% for col in result.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+        {% for row in result.rows %}
+        <tr><td class="idx">{{ loop.index }}</td>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </table>
+    </div>
   {% endif %}
 </div>
 {% endif %}

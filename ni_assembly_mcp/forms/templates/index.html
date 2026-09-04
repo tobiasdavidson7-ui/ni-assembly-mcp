@@ -1,17 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Northern Ireland Assembly Open Data</h1>
-<p class="summary">Query the Assembly's open data directly — members, questions,
-plenary business, divisions and the Official Report — with plain HTML forms and
-no language model. To use these tools from your own MCP client and language
-model instead, see <a href="/connect">connect your own client</a>.</p>
+<section class="hero">
+  <p class="eyebrow">Open data &middot; no language model</p>
+  <h1>Northern Ireland Assembly,<br><em>in the open</em>.</h1>
+  <p class="lede">Query members, questions, plenary business, divisions and the
+  Official Report directly — plain HTML forms, no account, no language model
+  in the loop. Prefer to bring your own? <a href="/connect">connect your own MCP client</a>.</p>
+</section>
 
 {% for group, specs in groups %}
-<h2>{{ group }}</h2>
-<ul class="forms">
-  {% for spec in specs %}
-  <li><a href="/forms/{{ spec.name }}">{{ spec.title }}</a> — {{ spec.summary }}</li>
-  {% endfor %}
-</ul>
+<section class="register">
+  <h2 class="register-heading">{{ group }}</h2>
+  <ul class="register-list">
+    {% for spec in specs %}
+    <li>
+      <a class="register-row" href="/forms/{{ spec.name }}">
+        <span class="register-row-title">{{ spec.title }}</span>
+        <span class="register-row-summary">{{ spec.summary }}</span>
+        <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
 {% endfor %}
 {% endblock %}
