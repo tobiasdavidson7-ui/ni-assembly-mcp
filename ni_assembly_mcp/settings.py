@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     index_circuit_break_failures: int = 5
     hansard_topup_days: int = 30
 
-    user_agent: str = "ni-assembly-mcp (+https://github.com/tobias-davidson/ni-assembly-mcp)"
+    user_agent: str = "ni-assembly-mcp (+https://github.com/tobiasdavidson7-ui/ni-assembly-mcp)"
 
     # --- public HTTP hosting (Phase 10) ---
     # `serve --http` is a public surface: forms UI + the raw streamable-HTTP MCP

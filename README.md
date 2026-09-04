@@ -246,7 +246,7 @@ SQLite has FTS5 enabled on ARM exactly as on x86. Nothing in the `Dockerfile` or
 5. **Clone and configure.**
 
    ```bash
-   git clone https://github.com/tobias-davidson/ni-assembly-mcp.git
+   git clone https://github.com/tobiasdavidson7-ui/ni-assembly-mcp.git
    cd ni-assembly-mcp
    printf 'NI_ASSEMBLY_MCP_HTTP_PUBLIC_URL=https://mcp.example.com\n' > .env
    ```
