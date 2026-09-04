@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from ni_assembly_mcp.settings import Settings
 
 # Paths that must never be rate limited (uptime checks hit these on a timer).
-_EXEMPT_PATHS = frozenset({"/healthz"})
+_EXEMPT_PATHS = frozenset({"/healthz", "/healthz/index"})
 
 # Sweep stale per-IP windows once the table grows past this many entries.
 _PRUNE_ABOVE = 10_000

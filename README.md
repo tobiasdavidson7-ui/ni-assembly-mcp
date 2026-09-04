@@ -141,17 +141,24 @@ docker compose up -d
 
 Point HTTP-capable MCP clients at `http://<host>:8000/mcp/`. Override the
 published port with `NI_ASSEMBLY_MCP_PORT` and the refresh cadence with
-`NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS` (default 86400). `GET /healthz`
-(never rate limited) always returns `200 {"status": "ok", ...}` — the process
-being reachable and the Hansard index being fresh are different failure modes,
-so a stale index never trips container-restart logic that can't fix it. The
-body also reports `index_hansard_last_refresh` and `index_hansard_stale`
-(`true` once the last successful `index hansard` run is more than twice
-`NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS` old — one missed cycle doesn't
-alert, two in a row does) and `index_questions_last_refresh`. Point a free
-uptime monitor (e.g. UptimeRobot's keyword check) at `/healthz` watching for
-`"index_hansard_stale": true` to catch a silently-failing refresh loop, in
-addition to the usual "did the request fail" check for the site being down.
+`NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS` (default 86400).
+
+Two health endpoints (both exempt from rate limiting):
+
+- `GET /healthz` always returns `200 {"status": "ok", ...}` — the process
+  being reachable and the Hansard index being fresh are different failure
+  modes, so a stale index never trips container-restart logic that can't fix
+  it. The body also reports `index_hansard_last_refresh`, `index_hansard_stale`
+  and `index_questions_last_refresh`, for a monitor that can assert on
+  response content.
+- `GET /healthz/index` is the plain alternative: `200` normally, `503` once
+  the last successful `index hansard` run is more than twice
+  `NI_ASSEMBLY_MCP_REFRESH_INTERVAL_SECONDS` old (one missed cycle doesn't
+  alert, two in a row does — an index that has never been built yet is also
+  `200`, not a failure). Point a free uptime monitor's plainest "expect HTTP
+  200" check at this one to catch a silently-failing refresh loop, no
+  keyword/body-matching support required — in addition to the usual "did the
+  request fail" check for the site being down outright.
 
 ### Rate limiting
 
@@ -298,9 +305,9 @@ SQLite has FTS5 enabled on ARM exactly as on x86. Nothing in the `Dockerfile` or
 
 Verify: `curl https://mcp.example.com/healthz` returns `{"status": "ok", ...}`,
 and `https://mcp.example.com/connect` shows your public endpoint. Consider
-pointing a free uptime monitor at `/healthz` — see the `GET /healthz` note
-above for the `index_hansard_stale` field, which catches a silently-failing
-`index-refresh` container that a plain "is the site up" check would miss.
+pointing a free uptime monitor's plain "expect HTTP 200" check at
+`/healthz/index` too — see the note above — to catch a silently-failing
+`index-refresh` container that a check of the site alone would miss.
 
 **Persistent state needs no special handling.** Oracle's boot and block volumes
 are ordinary block storage, so the `index` and `http-cache` named volumes in

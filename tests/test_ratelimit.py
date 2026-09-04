@@ -6,6 +6,8 @@ The limiter is a pure unit (clock injected); the middleware and
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse
@@ -13,6 +15,7 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from ni_assembly_mcp.http_app import build_http_app
+from ni_assembly_mcp.index_db import open_index, set_state, upsert_contributions
 from ni_assembly_mcp.ratelimit import (
     ALLOW,
     OVERLOADED,
@@ -91,12 +94,17 @@ def test_middleware_returns_429_with_retry_after_header():
 
 
 def test_healthz_is_never_rate_limited():
-    routes = [Route("/healthz", lambda _r: PlainTextResponse("ok")), Route("/", lambda _r: PlainTextResponse("ok"))]
+    routes = [
+        Route("/healthz", lambda _r: PlainTextResponse("ok")),
+        Route("/healthz/index", lambda _r: PlainTextResponse("ok")),
+        Route("/", lambda _r: PlainTextResponse("ok")),
+    ]
     app = RateLimitMiddleware(Starlette(routes=routes), config=_cfg(per_ip_per_minute=1))
     with TestClient(app) as client:
         assert client.get("/").status_code == 200
         assert client.get("/").status_code == 429  # non-exempt path is limited
         assert all(client.get("/healthz").status_code == 200 for _ in range(10))
+        assert all(client.get("/healthz/index").status_code == 200 for _ in range(10))
 
 
 # --- build_http_app wiring -------------------------------------------------
@@ -116,6 +124,58 @@ def test_build_http_app_serves_healthz(http_settings):
         # No index built in this tmp-dir test settings -> reported absent, not an error.
         assert body["index_present"] is False
         assert body["index_hansard_stale"] is None
+
+
+# --- /healthz/index: the plain "expect 200" staleness probe -----------------
+#
+# A separate path from /healthz on purpose (see http_app.py) -- some free
+# uptime monitors make keyword/body assertions hard to find in their UI, so
+# this one is watchable with nothing more than the simplest "is this URL up"
+# monitor type every provider supports.
+
+
+def test_healthz_index_ok_when_no_index_built(http_settings):
+    with TestClient(build_http_app(host="127.0.0.1", config=http_settings)) as client:
+        r = client.get("/healthz/index")
+        assert r.status_code == 200
+        assert r.json()["index_present"] is False
+
+
+def _stub_index(test_settings, *, last_refresh: str) -> None:
+    """A minimally "built" index (index_health treats an empty contribution
+    table the same as no index at all) with a given hansard_last_refresh."""
+    conn = open_index(test_settings.index_db_path)
+    upsert_contributions(
+        conn,
+        [
+            {
+                "speech_id": "s1", "debate_date": "2026-01-01", "major_heading": "Assembly Business",
+                "minor_heading": None, "person_id": None, "twfy_person_id": None, "speakername": "X",
+                "speech_time": None, "url": None, "body": "stub",
+            }
+        ],
+    )
+    set_state(conn, "hansard_last_refresh", last_refresh)
+    conn.commit()
+    conn.close()
+
+
+def test_healthz_index_ok_when_fresh(http_settings, test_settings):
+    _stub_index(test_settings, last_refresh=datetime.now(tz=UTC).isoformat())
+
+    with TestClient(build_http_app(host="127.0.0.1", config=http_settings)) as client:
+        r = client.get("/healthz/index")
+        assert r.status_code == 200
+        assert r.json()["index_hansard_stale"] is False
+
+
+def test_healthz_index_503_when_stale(http_settings, test_settings):
+    _stub_index(test_settings, last_refresh=(datetime.now(tz=UTC) - timedelta(days=5)).isoformat())
+
+    with TestClient(build_http_app(host="127.0.0.1", config=http_settings)) as client:
+        r = client.get("/healthz/index")
+        assert r.status_code == 503
+        assert r.json()["index_hansard_stale"] is True
 
 
 def test_rate_limit_sits_in_front_of_the_mcp_transport(http_settings):
