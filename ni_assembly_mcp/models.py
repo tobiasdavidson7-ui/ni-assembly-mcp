@@ -55,6 +55,19 @@ def parse_ni_datetime(value: Any) -> Any:
 NIADateTime = Annotated[datetime, BeforeValidator(parse_ni_datetime)]
 NIADate = Annotated[date, BeforeValidator(parse_ni_datetime)]
 
+def _unwrap_xml_text(value: Any) -> Any:
+    """NI's XML->JSON layer sometimes serializes a text node that also carries
+    an XML attribute (e.g. ``xml:space="preserve"``) as ``{"@xml:space": "...",
+    "#text": "..."}`` instead of a plain string. Unwrap that shape; passthrough
+    otherwise."""
+    if isinstance(value, dict):
+        return value.get("#text", "") or ""
+    return value
+
+
+NIAXmlText = Annotated[str, BeforeValidator(_unwrap_xml_text)]
+
+
 
 class NIABaseModel(BaseModel):
     """Base for NI Assembly record models.
@@ -230,7 +243,7 @@ class Question(NIABaseModel):
         None, validation_alias=AliasChoices("DepartmentName", "Department", "department_name")
     )
 
-    answer_plain_text: str | None = Field(None, alias="AnswerPlainText")
+    answer_plain_text: NIAXmlText | None = Field(None, alias="AnswerPlainText")
     answer_html: str | None = Field(None, alias="AnswerHtml")
     answer_open_xml: str | None = Field(None, alias="AnswerOpenXml")
 
