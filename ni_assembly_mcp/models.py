@@ -68,7 +68,6 @@ def _unwrap_xml_text(value: Any) -> Any:
 NIAXmlText = Annotated[str, BeforeValidator(_unwrap_xml_text)]
 
 
-
 class NIABaseModel(BaseModel):
     """Base for NI Assembly record models.
 
