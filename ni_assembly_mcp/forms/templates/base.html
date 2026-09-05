@@ -129,19 +129,8 @@
   .hero h1 em { font-style: italic; color: var(--accent-strong); }
   .hero .lede { font-size: 1.05rem; color: var(--ink-soft); max-width: 46ch; margin: 0; }
 
-  /* index.html — lookup list (question → form), same voice as the register below it */
+  /* index.html — lookup section (reuses .register-list/.register-row below) */
   .lookup { margin: 0 0 1rem; }
-  .lookup-list { margin: 0; border: 1px solid var(--hairline); border-radius: var(--radius); }
-  .lookup-row {
-    display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 1.5rem;
-    padding: .8rem 1rem; border-bottom: 1px solid var(--hairline);
-  }
-  .lookup-list .lookup-row:last-child { border-bottom: none; }
-  .lookup-row dt { font-weight: 600; color: var(--ink); margin: 0; }
-  .lookup-row dd { color: var(--ink-soft); margin: 0; }
-  @media (max-width: 640px) {
-    .lookup-row { grid-template-columns: 1fr; gap: .2rem; }
-  }
 
   /* index.html — register (form groups) */
   .register { margin: 0 0 1rem; }
