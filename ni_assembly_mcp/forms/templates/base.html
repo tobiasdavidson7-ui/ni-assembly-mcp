@@ -129,9 +129,19 @@
   .hero h1 em { font-style: italic; color: var(--accent-strong); }
   .hero .lede { font-size: 1.05rem; color: var(--ink-soft); max-width: 46ch; margin: 0; }
 
-  /* index.html — lookup table */
-  .lookup { margin: 0 0 2.6rem; }
-  .lookup-table th:first-child, .lookup-table td:first-child { width: 46%; }
+  /* index.html — lookup list (question → form), same voice as the register below it */
+  .lookup { margin: 0 0 1rem; }
+  .lookup-list { margin: 0; border: 1px solid var(--hairline); border-radius: var(--radius); }
+  .lookup-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 1.5rem;
+    padding: .8rem 1rem; border-bottom: 1px solid var(--hairline);
+  }
+  .lookup-list .lookup-row:last-child { border-bottom: none; }
+  .lookup-row dt { font-weight: 600; color: var(--ink); margin: 0; }
+  .lookup-row dd { color: var(--ink-soft); margin: 0; }
+  @media (max-width: 640px) {
+    .lookup-row { grid-template-columns: 1fr; gap: .2rem; }
+  }
 
   /* index.html — register (form groups) */
   .register { margin: 0 0 1rem; }
@@ -164,13 +174,20 @@
     margin: 0 0 2.6rem; padding: .2rem 1.3rem 1.5rem; border: 1px solid var(--hairline);
     border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--paper-raised);
   }
+  .beginner-title {
+    font-family: var(--font-display); font-weight: 600; font-size: 1.4rem;
+    line-height: 1.25; letter-spacing: -.005em; margin: 1.2rem 0 .7rem; color: var(--ink);
+  }
   .beginner h3 {
-    font-family: var(--font-display); font-weight: 600; font-size: 1.15rem;
-    margin: 1.8rem 0 .6rem; color: var(--ink);
+    font-family: var(--font-mono); font-weight: 600; font-size: .78rem;
+    letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft);
+    margin: 1.8rem 0 .7rem;
   }
   .beginner-address-label { font-weight: 600; font-size: .9rem; margin: 1rem 0 .3rem; }
   .beginner-steps { margin: 0 0 1rem; padding-left: 1.3rem; }
   .beginner-steps li { margin: .4rem 0; }
+  .plain-list { margin: 0; padding-left: 1.2rem; }
+  .plain-list li { color: var(--ink); margin: .3rem 0; }
 
   /* form.html — hint disclosure */
   .hint {

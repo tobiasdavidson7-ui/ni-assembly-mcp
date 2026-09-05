@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Connect your own client — NI Assembly Open Data{% endblock %}
 {% block content %}
-<p><a href="/">&larr; all forms</a></p>
+<p class="crumb"><a href="/">&larr; all forms</a></p>
 <h1>Connect your own MCP client</h1>
 <p class="summary">Point any HTTP-capable MCP client — Claude Desktop, Claude Code,
 or your own agent — at this server and use its tools with <em>your</em> language
@@ -9,7 +9,7 @@ model. This server only answers Assembly data queries: it never handles your LLM
 calls, your prompts or your API key.</p>
 
 <section class="beginner">
-  <h2>New to this? Connect Claude or ChatGPT in a few clicks</h2>
+  <h2 class="beginner-title">New to this? Connect Claude or ChatGPT in a few clicks</h2>
   <p class="summary">This lets you ask questions in plain English — <em>&ldquo;Which MLAs have asked
   about mental health funding this year?&rdquo;</em> — and get answers pulled directly from official
   records, instead of filling in forms yourself. You're not uploading anything or giving away any
@@ -52,7 +52,7 @@ calls, your prompts or your API key.</p>
   </ul>
 
   <h3>A few honest caveats</h3>
-  <ul class="hint-examples">
+  <ul class="plain-list">
     <li>The assistant can still make mistakes summarising results — click through to the original
     record before quoting it in a report or briefing.</li>
     <li>This connector fetches real official data, but it doesn't fact-check the Assembly's own
