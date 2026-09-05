@@ -1,80 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="hero">
-  <p class="eyebrow">Open data &middot; no language model</p>
   <h1>The Northern Ireland Assembly,<br><em>opened to all</em>.</h1>
-  <p class="lede">Explore Assembly records directly, or chat with
-  <a href="/connect">your own AI</a> to make sense of them.</p>
+  <p class="lede">Look up your MLA, see how they voted, or read what was said in a
+  debate — straight from the official records. Prefer to ask in plain English?
+  <a href="/connect">Chat with your own AI</a> instead.</p>
 </section>
 
-<section class="lookup">
-  <h2 class="register-heading">Not sure where to start?</h2>
-  <p class="summary">Find your question below, and it'll point you to the right form.</p>
+<section class="start">
+  <h2 class="start-title">Start with a question</h2>
   <ul class="register-list">
-    <li><a class="register-row" href="/forms/members">
-      <span class="register-row-title">Who is my local MLA?</span>
-      <span class="register-row-summary">Search members — filter by constituency</span>
-      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-    </a></li>
     <li><a class="register-row" href="/forms/divisions">
-      <span class="register-row-title">How did my MLA vote on something?</span>
-      <span class="register-row-summary">Divisions (recorded votes)</span>
-      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-    </a></li>
-    <li><a class="register-row" href="/forms/questions">
-      <span class="register-row-title">Has anyone asked the Minister about this?</span>
-      <span class="register-row-summary">Search parliamentary questions</span>
+      <span class="register-row-title">How did a member vote on something?</span>
+      <span class="register-row-summary">Recorded votes (divisions)</span>
       <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
     </a></li>
     <li><a class="register-row" href="/forms/contributions">
-      <span class="register-row-title">What did someone say in the Chamber about this?</span>
+      <span class="register-row-title">What did someone say in a debate?</span>
       <span class="register-row-summary">Search contributions</span>
       <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
     </a></li>
-    <li><a class="register-row" href="/forms/plenary-business">
-      <span class="register-row-title">Is there a debate coming up about this?</span>
-      <span class="register-row-summary">Search plenary business, or check the business diary</span>
+    <li><a class="register-row" href="/forms/business-diary">
+      <span class="register-row-title">What's happening at the Assembly this week?</span>
+      <span class="register-row-summary">Business diary</span>
+      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
+    </a></li>
+    <li><a class="register-row" href="/forms/questions">
+      <span class="register-row-title">Has this issue been raised before?</span>
+      <span class="register-row-summary">Search parliamentary questions</span>
       <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
     </a></li>
     <li><a class="register-row" href="/forms/committees">
-      <span class="register-row-title">Which committee looks at this issue?</span>
+      <span class="register-row-title">What does a committee cover?</span>
       <span class="register-row-summary">List all committees</span>
       <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
     </a></li>
-    <li><a class="register-row" href="/forms/committee-agenda">
-      <span class="register-row-title">What's on a committee's agenda this week?</span>
-      <span class="register-row-summary">Committee agenda</span>
-      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-    </a></li>
-    <li><a class="register-row" href="/forms/registered-interests">
-      <span class="register-row-title">Does my MLA have relevant financial interests?</span>
-      <span class="register-row-summary">Register of Members' Interests</span>
-      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-    </a></li>
-    <li><a class="register-row" href="/forms/ministerial-roles">
-      <span class="register-row-title">Who is the Minister for a department?</span>
-      <span class="register-row-summary">Ministerial roles</span>
-      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-    </a></li>
   </ul>
-  <p class="summary">Each form has a <strong>&ldquo;What can I ask here?&rdquo;</strong> hint you can open for
-  example questions and what you'll get back.</p>
 </section>
 
+<p class="reassurance">No account, no sign-up. This site isn't run by the Assembly and
+never puts a language model between you and the record — <a href="/connect">unless you
+bring your own</a>.</p>
+
 {% for group, specs in groups %}
-<section class="register">
-  <h2 class="register-heading">{{ group }}</h2>
+<details class="topic">
+  <summary class="topic-summary">
+    <span class="topic-name">{{ group }}</span>
+    <span class="topic-gloss">{{ group_gloss.get(group, "") }}</span>
+  </summary>
   <ul class="register-list">
     {% for spec in specs %}
     <li>
       <a class="register-row" href="/forms/{{ spec.name }}">
         <span class="register-row-title">{{ spec.title }}</span>
-        <span class="register-row-summary">{{ spec.summary }}</span>
+        <span class="register-row-summary">{{ spec.blurb or spec.summary }}</span>
         <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
       </a>
     </li>
     {% endfor %}
   </ul>
-</section>
+</details>
 {% endfor %}
 {% endblock %}

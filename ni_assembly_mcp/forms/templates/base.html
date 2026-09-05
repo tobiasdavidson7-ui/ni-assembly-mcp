@@ -120,21 +120,45 @@
   footer a:hover { color: var(--accent-strong); }
 
   /* index.html — hero */
-  .hero { padding: .2rem 0 2.6rem; }
-  .eyebrow {
-    font-family: var(--font-mono); font-size: .78rem; letter-spacing: .09em;
-    text-transform: uppercase; color: var(--accent); margin: 0 0 .8rem;
-  }
+  .hero { padding: 1.4rem 0 2.2rem; }
   .hero h1 { margin-top: 0; max-width: 18ch; }
   .hero h1 em { font-style: italic; color: var(--accent-strong); }
   .hero .lede { font-size: 1.05rem; color: var(--ink-soft); max-width: 46ch; margin: 0; }
 
-  /* index.html — lookup section (reuses .register-list/.register-row below) */
-  .lookup { margin: 0 0 1rem; }
+  /* index.html — "start with a question" fast path (same callout language as .beginner) */
+  .start {
+    margin: 0 0 1.6rem; padding: .2rem 1.3rem 1rem; border: 1px solid var(--hairline);
+    border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--paper-raised);
+  }
+  .start-title {
+    font-family: var(--font-display); font-weight: 600; font-size: 1.25rem;
+    margin: 1.1rem 0 .3rem; color: var(--ink);
+  }
+  .start .register-list li:first-child { border-top: none; }
 
-  /* index.html — register (form groups) */
-  .register { margin: 0 0 1rem; }
-  .register-heading::before { content: "\00a7 "; color: var(--accent); }
+  /* index.html — reassurance line (moved out of the hero, kept short) */
+  .reassurance { color: var(--ink-soft); font-size: .88rem; margin: 0 0 2.8rem; }
+
+  /* index.html — collapsible topic groups */
+  .topic { margin: 0 0 .9rem; border-bottom: 1px solid var(--hairline); }
+  .topic-summary {
+    cursor: pointer; list-style: none; display: flex; flex-wrap: wrap;
+    align-items: baseline; gap: .3rem 1rem; padding: 1rem 0; user-select: none;
+  }
+  .topic-summary::-webkit-details-marker { display: none; }
+  .topic-summary::before {
+    content: "\25B8"; color: var(--accent); font-size: .8em; margin-right: .1rem;
+    transition: transform .15s;
+  }
+  .topic[open] .topic-summary::before { transform: rotate(90deg); }
+  .topic-name {
+    font-family: var(--font-mono); font-weight: 600; font-size: .8rem;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--ink);
+  }
+  .topic-gloss { color: var(--ink-soft); font-size: .88rem; }
+  .topic .register-list { margin: 0 0 1.2rem; }
+
+  /* index.html — register (form groups), also reused by .start above */
   .register-list { list-style: none; margin: 0; padding: 0; }
   .register-list li { border-bottom: 1px solid var(--hairline); }
   .register-list li:first-child { border-top: 1px solid var(--hairline); }

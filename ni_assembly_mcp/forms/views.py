@@ -23,7 +23,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from starlette.responses import FileResponse, HTMLResponse
 
 from ni_assembly_mcp.forms.render import normalise
-from ni_assembly_mcp.forms.specs import FORMS, FORMS_BY_NAME, FormField, FormSpec, clamp_counts
+from ni_assembly_mcp.forms.specs import FORMS, FORMS_BY_NAME, GROUP_GLOSS, FormField, FormSpec, clamp_counts
 from ni_assembly_mcp.settings import settings
 
 if TYPE_CHECKING:
@@ -100,7 +100,7 @@ async def _run_form(spec: FormSpec, submitted: dict[str, str]) -> HTMLResponse:
 
 
 async def index(_request: Request) -> HTMLResponse:
-    return _render("index.html", groups=_grouped())
+    return _render("index.html", groups=_grouped(), group_gloss=GROUP_GLOSS)
 
 
 async def logo(_request: Request) -> FileResponse:
