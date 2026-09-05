@@ -6,7 +6,7 @@
 <title>{% block title %}NI Assembly Open Data{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     color-scheme: light dark;
@@ -22,13 +22,13 @@
     --flag: #B33A2E;
     --flag-soft: #F6E4E1;
     --radius: 3px;
-    --font-display: "Newsreader", Georgia, "Times New Roman", serif;
-    --font-body: "IBM Plex Sans", "Segoe UI", Roboto, system-ui, sans-serif;
+    --font-display: "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+    --font-body: "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
     --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
 
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --paper: #14181D;
       --paper-raised: #1B2027;
       --ink: #E9E7DE;
@@ -42,6 +42,28 @@
       --flag-soft: rgba(226, 102, 90, .16);
     }
   }
+
+  :root[data-theme="dark"] {
+    --paper: #14181D;
+    --paper-raised: #1B2027;
+    --ink: #E9E7DE;
+    --ink-soft: #A0A7B2;
+    --hairline: rgba(233, 231, 222, .16);
+    --hairline-strong: rgba(233, 231, 222, .3);
+    --accent: #5FBFA3;
+    --accent-strong: #8AD9C0;
+    --accent-soft: rgba(95, 191, 163, .14);
+    --flag: #E2665A;
+    --flag-soft: rgba(226, 102, 90, .16);
+  }
+
+  .theme-toggle {
+    font: 600 .78rem var(--font-mono); letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ink-soft); background: transparent; border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius); padding: .35rem .7rem; cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .theme-toggle:hover { color: var(--accent-strong); border-color: var(--accent); }
 
   * { box-sizing: border-box; }
   html { background: var(--paper); }
@@ -382,8 +404,30 @@
     <a href="/">Forms</a>
     <a href="/connect">Connect your client</a>
     <a href="/mcp/">MCP endpoint</a>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light/dark theme">Theme</button>
   </nav>
 </header>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('theme-toggle');
+    var stored = null;
+    try { stored = localStorage.getItem('ni-theme'); } catch (e) {}
+    if (stored === 'light' || stored === 'dark') root.setAttribute('data-theme', stored);
+
+    function current() {
+      var attr = root.getAttribute('data-theme');
+      if (attr) return attr;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    btn.addEventListener('click', function () {
+      var next = current() === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('ni-theme', next); } catch (e) {}
+    });
+  })();
+</script>
 <main>
 {% block content %}{% endblock %}
 </main>
