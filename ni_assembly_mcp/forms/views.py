@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from starlette.responses import HTMLResponse
+from starlette.responses import FileResponse, HTMLResponse
 
 from ni_assembly_mcp.forms.render import normalise
 from ni_assembly_mcp.forms.specs import FORMS, FORMS_BY_NAME, FormField, FormSpec, clamp_counts
@@ -31,6 +31,9 @@ if TYPE_CHECKING:
     from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
+
+_STATIC_DIR = Path(__file__).parent / "static"
+_LOGO_PATH = _STATIC_DIR / "logo.png"
 
 _env = Environment(
     loader=FileSystemLoader(str(Path(__file__).parent / "templates")),
@@ -100,6 +103,11 @@ async def index(_request: Request) -> HTMLResponse:
     return _render("index.html", groups=_grouped())
 
 
+async def logo(_request: Request) -> FileResponse:
+    """Serve the site logo (fixed path — never user input)."""
+    return FileResponse(_LOGO_PATH, headers={"Cache-Control": "public, max-age=604800, immutable"})
+
+
 def _mcp_url() -> str:
     return settings.http_public_url.rstrip("/") + "/mcp/"
 
@@ -131,5 +139,6 @@ async def form_view(request: Request) -> HTMLResponse:
 def register_form_routes(server: MCPServer) -> None:
     """Attach ``/`` and ``/forms/{name}``. Must run before ``streamable_http_app()``."""
     server.custom_route("/", methods=["GET"], include_in_schema=False)(index)
+    server.custom_route("/static/logo.png", methods=["GET"], include_in_schema=False)(logo)
     server.custom_route("/connect", methods=["GET"], include_in_schema=False)(connect)
     server.custom_route("/forms/{name}", methods=["GET", "POST"], include_in_schema=False)(form_view)

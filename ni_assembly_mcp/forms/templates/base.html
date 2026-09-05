@@ -311,46 +311,34 @@
   /* splash screen */
   #splash {
     position: fixed; inset: 0; z-index: 1000;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 1.4rem; background: #0C1210; color: #EAF3EF;
-    animation: splash-out .5s ease-in .5s forwards;
-    animation-delay: 2.5s;
+    display: flex; align-items: center; justify-content: center;
+    background: #0C1210;
+    opacity: 0; animation: splash-in .4s ease-out forwards, splash-out .4s ease-in 2.6s forwards;
   }
   #splash[hidden] { display: none; }
-  .splash-mark { width: min(220px, 55vw); height: auto; }
-  .splash-title {
-    font-family: var(--font-mono); font-weight: 600; text-align: center;
-    letter-spacing: .04em; line-height: 1.5;
-  }
-  .splash-title .l1 { display: block; font-size: 1.5rem; color: #EAF3EF; }
-  .splash-title .l2 { display: block; font-size: 1.05rem; color: #5FBFA3; letter-spacing: .12em; }
-  @keyframes splash-out {
-    to { opacity: 0; visibility: hidden; }
-  }
+  .splash-mark { width: min(260px, 60vw); height: auto; }
+  @keyframes splash-in { to { opacity: 1; } }
+  @keyframes splash-out { to { opacity: 0; visibility: hidden; } }
   @media (prefers-reduced-motion: reduce) {
-    #splash { animation: none; }
+    #splash { animation: none; opacity: 1; }
   }
 </style>
 </head>
 <body>
-<div id="splash" role="status" aria-label="Welcome to NI Assembly MCP">
-  <svg class="splash-mark" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect x="10" y="90" width="180" height="8" fill="#5FBFA3"/>
-    <rect x="30" y="60" width="140" height="30" fill="#3E8E77"/>
-    <rect x="45" y="35" width="110" height="25" fill="#3E8E77"/>
-    <rect x="70" y="15" width="60" height="20" fill="#3E8E77"/>
-    <rect x="90" y="5" width="20" height="10" fill="#3E8E77"/>
-    <rect x="20" y="90" width="10" height="16" fill="#2F6F5E"/>
-    <rect x="170" y="90" width="10" height="16" fill="#2F6F5E"/>
-  </svg>
-  <p class="splash-title">
-    <span class="l1">Welcome to NI Assembly MCP</span>
-  </p>
+<div id="splash" hidden role="status" aria-label="Welcome to NI Assembly MCP">
+  <img class="splash-mark" src="/static/logo.png" alt="NI Assembly MCP">
 </div>
 <script>
+  // Runs synchronously, right after the (hidden-by-default) splash markup and
+  // before the rest of the page parses — so on a repeat visit within the same
+  // tab session it never becomes visible at all, avoiding a flash on every
+  // internal link click. sessionStorage clears on tab close, not on navigation,
+  // so the splash still shows again for a genuinely new visit.
   (function () {
     var splash = document.getElementById('splash');
-    if (!splash) return;
+    if (!splash || sessionStorage.getItem('ni-splash-shown')) return;
+    sessionStorage.setItem('ni-splash-shown', '1');
+    splash.hidden = false;
     setTimeout(function () { splash.hidden = true; }, 3000);
   })();
 </script>
