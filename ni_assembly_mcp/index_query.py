@@ -274,6 +274,24 @@ def search_contributions(
     return [_contribution_row(r, scored=True) for r in conn.execute(sql, params).fetchall()]
 
 
+def get_contribution(conn: sqlite3.Connection, speech_id: str) -> dict | None:
+    """Fetch one contribution's full spoken text by ``speech_id`` (PLAN.md §6.3).
+
+    Unlike :func:`search_contributions`, this returns ``body`` in full — no
+    snippet truncation. ``None`` when ``speech_id`` doesn't match any row.
+    """
+    select_cols = ", ".join(f"c.{col}" for col in _CONTRIB_COLUMNS)
+    row = conn.execute(
+        f"SELECT {select_cols}, c.body FROM contribution c WHERE c.speech_id = ?",
+        (speech_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    result = {col: row[col] for col in _CONTRIB_COLUMNS}
+    result["body"] = row["body"]
+    return result
+
+
 def rank_contributors(
     conn: sqlite3.Connection,
     query: str,
@@ -729,6 +747,8 @@ class HansardSearchBackend(Protocol):
         num_contributions: int,
     ) -> list[dict]: ...
 
+    def contribution(self, speech_id: str) -> dict | None: ...
+
 
 class Fts5Backend:
     """:class:`HansardSearchBackend` backed by the local SQLite FTS5 index.
@@ -764,6 +784,13 @@ class Fts5Backend:
             return search_contributions(
                 conn, query, member_id=member_id, date_from=date_from, date_to=date_to, limit=limit
             )
+        finally:
+            conn.close()
+
+    def contribution(self, speech_id: str) -> dict | None:
+        conn = open_index(self._config.index_db_path, read_only=True)
+        try:
+            return get_contribution(conn, speech_id)
         finally:
             conn.close()
 

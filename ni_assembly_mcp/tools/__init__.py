@@ -11,6 +11,7 @@ from collections.abc import Callable
 from ni_assembly_mcp.tools.committees import get_committee_agenda
 from ni_assembly_mcp.tools.hansard import (
     find_relevant_contributors,
+    get_contribution,
     get_hansard_reports,
     search_contributions,
     search_debate_titles,
@@ -67,6 +68,7 @@ ALL_TOOLS: list[Callable] = [
     search_debate_titles,
     # Phase 6c — Hansard contribution search & contributor ranking (FTS5 index)
     search_contributions,
+    get_contribution,
     find_relevant_contributors,
     # Phase 7 — XML-only extras (committee agendas)
     get_committee_agenda,

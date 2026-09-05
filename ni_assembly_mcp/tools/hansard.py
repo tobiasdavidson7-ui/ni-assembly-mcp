@@ -151,6 +151,26 @@ async def search_contributions(
 
 
 @log_tool_call
+async def get_contribution(
+    speech_id: Annotated[str, Field(description="speech_id of the contribution (from search_contributions).")],
+) -> dict | str:
+    """Fetch one contribution's full spoken text by ``speech_id``.
+
+    Use this to see the whole thing after ``search_contributions`` or
+    ``find_relevant_contributors`` gave you only a snippet. Returns the same
+    fields as those tools plus ``body`` (the full text, untruncated).
+    """
+    backend = Fts5Backend(settings)
+    try:
+        row = backend.contribution(speech_id)
+    except IndexNotBuiltError:
+        return _NOT_BUILT_MSG
+    if row is None:
+        return f"No contribution found with speech_id {speech_id!r}."
+    return row
+
+
+@log_tool_call
 async def find_relevant_contributors(
     query: Annotated[
         str, Field(description="Topic keyword(s). Required. Stemmed, BM25-weighted; not semantic.")

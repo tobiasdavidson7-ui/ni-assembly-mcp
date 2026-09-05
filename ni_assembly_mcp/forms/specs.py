@@ -20,6 +20,7 @@ from ni_assembly_mcp.tools import ALL_TOOLS
 from ni_assembly_mcp.tools.committees import get_committee_agenda
 from ni_assembly_mcp.tools.hansard import (
     find_relevant_contributors,
+    get_contribution,
     get_hansard_reports,
     search_contributions,
     search_debate_titles,
@@ -395,8 +396,21 @@ FORMS: tuple[FormSpec, ...] = (
             _count(50),
         ),
         examples=("What did someone say in the Chamber about this?", "What has this MLA said about housing?"),
-        provides="A list of individual spoken contributions matching your keywords, with speaker and date.",
+        provides="A list of individual spoken contributions matching your keywords, with speaker and date. "
+                 "Each has a speech id — copy it into the \"Contribution detail\" form below to read the "
+                 "full spoken text instead of just the snippet.",
         blurb="What was said in a debate, and by whom.",
+    ),
+    FormSpec(
+        "contribution-detail",
+        "Contribution detail",
+        "One contribution's full spoken text, untruncated. Needs the local Hansard index.",
+        get_contribution,
+        HANSARD,
+        (FormField("speech_id", "Speech id", required=True, help="From the contribution search."),),
+        examples=("What did they actually say in full, not just the snippet?",),
+        provides="The full spoken text of one contribution, given its speech id.",
+        blurb="One contribution's full text, in full.",
     ),
     FormSpec(
         "relevant-contributors",
