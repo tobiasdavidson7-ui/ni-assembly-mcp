@@ -129,6 +129,10 @@
   .hero h1 em { font-style: italic; color: var(--accent-strong); }
   .hero .lede { font-size: 1.05rem; color: var(--ink-soft); max-width: 46ch; margin: 0; }
 
+  /* index.html — lookup table */
+  .lookup { margin: 0 0 2.6rem; }
+  .lookup-table th:first-child, .lookup-table td:first-child { width: 46%; }
+
   /* index.html — register (form groups) */
   .register { margin: 0 0 1rem; }
   .register-heading::before { content: "\00a7 "; color: var(--accent); }
@@ -154,6 +158,40 @@
   .register-row:hover .register-row-arrow, .register-row:focus-visible .register-row-arrow {
     opacity: 1; transform: translateX(0);
   }
+
+  /* connect.html — beginner guide */
+  .beginner {
+    margin: 0 0 2.6rem; padding: .2rem 1.3rem 1.5rem; border: 1px solid var(--hairline);
+    border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--paper-raised);
+  }
+  .beginner h3 {
+    font-family: var(--font-display); font-weight: 600; font-size: 1.15rem;
+    margin: 1.8rem 0 .6rem; color: var(--ink);
+  }
+  .beginner-address-label { font-weight: 600; font-size: .9rem; margin: 1rem 0 .3rem; }
+  .beginner-steps { margin: 0 0 1rem; padding-left: 1.3rem; }
+  .beginner-steps li { margin: .4rem 0; }
+
+  /* form.html — hint disclosure */
+  .hint {
+    margin: 0 0 1.8rem; border: 1px solid var(--hairline); border-radius: var(--radius);
+    background: var(--accent-soft);
+  }
+  .hint-toggle {
+    cursor: pointer; list-style: none; padding: .7rem 1rem; font-weight: 600;
+    font-size: .9rem; color: var(--accent-strong); user-select: none;
+  }
+  .hint-toggle::-webkit-details-marker { display: none; }
+  .hint-toggle::before { content: "\2753  "; }
+  .hint[open] .hint-toggle::before { content: "\2753  "; }
+  .hint-body { padding: 0 1.1rem 1rem; }
+  .hint-label {
+    font-family: var(--font-mono); font-size: .74rem; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--ink-soft); margin: .8rem 0 .4rem;
+  }
+  .hint-examples { margin: 0; padding-left: 1.2rem; }
+  .hint-examples li { font-style: italic; color: var(--ink); margin: .2rem 0; }
+  .hint-provides { margin: 0; color: var(--ink); }
 
   /* form.html — crumb, query form, errors */
   p.crumb { margin: 0 0 1rem; }
@@ -269,9 +307,53 @@
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
+
+  /* splash screen */
+  #splash {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1.4rem; background: #0C1210; color: #EAF3EF;
+    animation: splash-out .5s ease-in .5s forwards;
+    animation-delay: 2.5s;
+  }
+  #splash[hidden] { display: none; }
+  .splash-mark { width: min(220px, 55vw); height: auto; }
+  .splash-title {
+    font-family: var(--font-mono); font-weight: 600; text-align: center;
+    letter-spacing: .04em; line-height: 1.5;
+  }
+  .splash-title .l1 { display: block; font-size: 1.5rem; color: #EAF3EF; }
+  .splash-title .l2 { display: block; font-size: 1.05rem; color: #5FBFA3; letter-spacing: .12em; }
+  @keyframes splash-out {
+    to { opacity: 0; visibility: hidden; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #splash { animation: none; }
+  }
 </style>
 </head>
 <body>
+<div id="splash" role="status" aria-label="Welcome to NI Assembly MCP">
+  <svg class="splash-mark" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="10" y="90" width="180" height="8" fill="#5FBFA3"/>
+    <rect x="30" y="60" width="140" height="30" fill="#3E8E77"/>
+    <rect x="45" y="35" width="110" height="25" fill="#3E8E77"/>
+    <rect x="70" y="15" width="60" height="20" fill="#3E8E77"/>
+    <rect x="90" y="5" width="20" height="10" fill="#3E8E77"/>
+    <rect x="20" y="90" width="10" height="16" fill="#2F6F5E"/>
+    <rect x="170" y="90" width="10" height="16" fill="#2F6F5E"/>
+  </svg>
+  <p class="splash-title">
+    <span class="l1">Welcome to NI Assembly MCP</span>
+  </p>
+</div>
+<script>
+  (function () {
+    var splash = document.getElementById('splash');
+    if (!splash) return;
+    setTimeout(function () { splash.hidden = true; }, 3000);
+  })();
+</script>
 <header class="masthead">
   <a class="mark" href="/">
     <span class="mark-line">NI Assembly</span>

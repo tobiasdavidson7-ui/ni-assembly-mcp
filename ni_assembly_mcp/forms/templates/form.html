@@ -5,6 +5,24 @@
 <h1>{{ spec.title }}</h1>
 <p class="summary">{{ spec.summary }}</p>
 
+{% if spec.examples or spec.provides %}
+<details class="hint">
+  <summary class="hint-toggle">What can I ask here?</summary>
+  <div class="hint-body">
+    {% if spec.examples %}
+    <p class="hint-label">Example questions this can answer</p>
+    <ul class="hint-examples">
+      {% for example in spec.examples %}<li>&ldquo;{{ example }}&rdquo;</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if spec.provides %}
+    <p class="hint-label">What you'll get back</p>
+    <p class="hint-provides">{{ spec.provides }}</p>
+    {% endif %}
+  </div>
+</details>
+{% endif %}
+
 {% if errors %}
 <div class="errors">
   <p class="errors-label">Couldn't run this query</p>

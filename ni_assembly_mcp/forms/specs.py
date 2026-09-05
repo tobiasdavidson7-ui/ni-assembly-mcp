@@ -86,6 +86,8 @@ class FormSpec:
     tool: Callable[..., Awaitable[object]]
     group: str
     fields: tuple[FormField, ...] = field(default_factory=tuple)
+    examples: tuple[str, ...] = field(default_factory=tuple)  # sample questions this form answers
+    provides: str = ""  # plain-English description of what you get back
 
 
 def _date(name: str, label: str, help: str = "") -> FormField:
@@ -111,12 +113,20 @@ COMMITTEES = "Committees"
 
 FORMS: tuple[FormSpec, ...] = (
     # --- reference lists (no arguments) --------------------------------------
-    FormSpec("departments", "Executive departments", "Current NICS departments.", get_departments, REFERENCE),
-    FormSpec("parties", "Political parties", "Parties currently represented.", get_parties, REFERENCE),
+    FormSpec("departments", "Executive departments", "Current NICS departments.", get_departments, REFERENCE,
+             examples=("Which department is 'DfE'?", "What are all the NI Civil Service departments?"),
+             provides="A plain list of current departments with their names and ids, for use as filters elsewhere."),
+    FormSpec("parties", "Political parties", "Parties currently represented.", get_parties, REFERENCE,
+             examples=("What parties currently have seats in the Assembly?",),
+             provides="A list of parties with their ids and names, for use as filters elsewhere."),
     FormSpec("party-groups", "All-Party Groups", "Current cross-party interest groups.",
-             list_all_party_groups, REFERENCE),
+             list_all_party_groups, REFERENCE,
+             examples=("Is there an All-Party Group on cancer, or on the environment?",),
+             provides="A list of current cross-party interest groups and what they cover."),
     FormSpec("organisations", "All organisations", "Every current organisation, combined.",
-             list_organisations, REFERENCE),
+             list_organisations, REFERENCE,
+             examples=("What's the full list of departments, parties and committees, in one place?",),
+             provides="Every current organisation the Assembly recognises, combined into one list."),
     FormSpec(
         "committees",
         "Committees",
@@ -125,8 +135,12 @@ FORMS: tuple[FormSpec, ...] = (
         REFERENCE,
         (FormField("committee_type", "Category", kind="choice",
                    choices=("all", "standing", "statutory", "adhoc", "other")),),
+        examples=("Which committee looks at health?", "What statutory committees exist right now?"),
+        provides="A list of current committees (optionally filtered by type) with their ids and names.",
     ),
-    FormSpec("constituencies", "Constituencies", "The 18 Assembly constituencies.", get_constituencies, REFERENCE),
+    FormSpec("constituencies", "Constituencies", "The 18 Assembly constituencies.", get_constituencies, REFERENCE,
+             examples=("What are the 18 Assembly constituencies?",),
+             provides="A list of the 18 constituencies with their ids, for use as filters elsewhere."),
     # --- members -----------------------------------------------------------
     FormSpec(
         "members",
@@ -143,6 +157,8 @@ FORMS: tuple[FormSpec, ...] = (
                       help="Only applies when no other filter is set. Default Yes."),
             _count(25),
         ),
+        examples=("Who is my local MLA?", "Which MLAs represent North Down?", "Who are the current DUP MLAs?"),
+        provides="A list of matching MLAs — name, party, constituency and PersonId (needed for other forms).",
     ),
     FormSpec(
         "member-detail",
@@ -156,6 +172,8 @@ FORMS: tuple[FormSpec, ...] = (
             FormField("include_contact", "Include contact details", kind="bool", help="Default No."),
             FormField("include_registered_interests", "Include registered interests", kind="bool", help="Default No."),
         ),
+        examples=("What roles does this MLA hold?", "What's this MLA's constituency office contact info?"),
+        provides="One MLA's full profile: roles, contact details and/or registered interests, as requested.",
     ),
     FormSpec(
         "registered-interests",
@@ -168,6 +186,8 @@ FORMS: tuple[FormSpec, ...] = (
             FormField("category", "Category", help="Substring, e.g. 'donations'."),
             _count(100),
         ),
+        examples=("Does my MLA have any relevant financial interests?", "Who has declared donations?"),
+        provides="Register of Members' Interests entries, optionally narrowed to one member or category.",
     ),
     FormSpec(
         "ministerial-roles",
@@ -176,6 +196,8 @@ FORMS: tuple[FormSpec, ...] = (
         list_ministerial_roles,
         MEMBERS,
         (FormField("include_junior_ministers", "Include junior Ministers", kind="bool", help="Default Yes."),),
+        examples=("Who is the Minister for Health?", "Who holds each Executive department?"),
+        provides="A list of ministerial roles and who currently holds each one.",
     ),
     FormSpec(
         "state-of-the-parties",
@@ -184,6 +206,8 @@ FORMS: tuple[FormSpec, ...] = (
         get_state_of_the_parties,
         MEMBERS,
         (_date("as_of_date", "As of date", "Omit for the current Assembly."),),
+        examples=("How many seats does each party currently hold?", "What was the party balance on a past date?"),
+        provides="A seat count per party, for the current Assembly or as it stood on a given date.",
     ),
     # --- questions -------------------------------------------------------
     FormSpec(
@@ -202,6 +226,10 @@ FORMS: tuple[FormSpec, ...] = (
             FormField("answering_body_name", "Answering department", help="e.g. 'Health' or 'DoF'."),
             _count(25),
         ),
+        examples=("Has anyone asked the Minister about school transport this year?",
+                   "What questions has this MLA asked?", "Which questions did Health answer last month?"),
+        provides="A list of matching questions with asking member, department and date, plus a document id "
+                 "to look up the full answer.",
     ),
     FormSpec(
         "question-detail",
@@ -211,6 +239,8 @@ FORMS: tuple[FormSpec, ...] = (
         QUESTIONS,
         (FormField("document_id", "Document id", kind="int", required=True,
                    help="From the question search."),),
+        examples=("What was the Minister's actual answer to this question?",),
+        provides="The full text of one question and the Minister's answer, given its document id.",
     ),
     # --- plenary business & divisions -----------------------------------
     FormSpec(
@@ -229,6 +259,8 @@ FORMS: tuple[FormSpec, ...] = (
             FormField("include_tablers", "Include tablers", kind="bool", help="Default Yes."),
             _count(25),
         ),
+        examples=("Is there a debate coming up about this?", "What motions has this MLA tabled?"),
+        provides="A list of tabled motions, amendments, statements and urgent questions matching your filters.",
     ),
     FormSpec(
         "business-diary",
@@ -243,6 +275,8 @@ FORMS: tuple[FormSpec, ...] = (
             FormField("organisation", "Organisation", help="Substring, e.g. 'Committee for Health'."),
             _count(100),
         ),
+        examples=("What's on a committee's agenda this week?", "When is the Assembly next sitting?"),
+        provides="A list of sittings, committee meetings and other events between the two dates you give.",
     ),
     FormSpec(
         "divisions",
@@ -260,6 +294,9 @@ FORMS: tuple[FormSpec, ...] = (
             FormField("include_results", "Include results", kind="bool", help="Default Yes."),
             _count(25),
         ),
+        examples=("How did my MLA vote on this bill?", "What divisions happened last month?"),
+        provides="A list of recorded votes, or (given a document id) one division's full result and "
+                 "how each member voted.",
     ),
     FormSpec(
         "motion-context",
@@ -269,6 +306,9 @@ FORMS: tuple[FormSpec, ...] = (
         PLENARY,
         (FormField("document_id", "Motion document id", kind="int", required=True,
                    help="From the plenary-business search."),),
+        examples=("Who tabled this motion, and were there any amendments?",
+                   "Was a Petition of Concern raised against this motion?"),
+        provides="One motion's full context: text, tablers, amendments, linked Bill and Petition of Concern status.",
     ),
     FormSpec(
         "no-day-named-motions",
@@ -280,6 +320,8 @@ FORMS: tuple[FormSpec, ...] = (
             FormField("query", "Keywords", help="Literal substring on title/text."),
             _count(100),
         ),
+        examples=("Are there any motions on this topic still waiting for a debate date?",),
+        provides="A list of signed motions that have no scheduled debate date yet.",
     ),
     # --- Hansard --------------------------------------------------------
     FormSpec(
@@ -289,6 +331,8 @@ FORMS: tuple[FormSpec, ...] = (
         get_hansard_reports,
         HANSARD,
         (_date("date_from", "From"), _date("date_to", "To"), _count(50)),
+        examples=("What sitting days has the Assembly had recently?",),
+        provides="A list of Official Report sitting days in the range, newest first.",
     ),
     FormSpec(
         "debate-titles",
@@ -302,6 +346,8 @@ FORMS: tuple[FormSpec, ...] = (
             _date("date_to", "To", "Default: today."),
             _count(25),
         ),
+        examples=("Has there been a debate about this topic recently?", "What debates covered childcare?"),
+        provides="A list of matching debate/section titles with their dates, to browse or feed into other forms.",
     ),
     FormSpec(
         "contributions",
@@ -316,6 +362,8 @@ FORMS: tuple[FormSpec, ...] = (
             _date("date_to", "To"),
             _count(50),
         ),
+        examples=("What did someone say in the Chamber about this?", "What has this MLA said about housing?"),
+        provides="A list of individual spoken contributions matching your keywords, with speaker and date.",
     ),
     FormSpec(
         "relevant-contributors",
@@ -331,6 +379,8 @@ FORMS: tuple[FormSpec, ...] = (
             _date("date_from", "From"),
             _date("date_to", "To"),
         ),
+        examples=("Which MLAs speak most often about this issue?", "Who are the go-to voices on this topic?"),
+        provides="A ranked list of members by how much they've spoken on the topic, with example quotes.",
     ),
     # --- committees ----------------------------------------------------
     FormSpec(
@@ -344,6 +394,8 @@ FORMS: tuple[FormSpec, ...] = (
             FormField("committee_id", "Committee id", kind="int", help="Narrows a date lookup to one committee."),
             FormField("event_id", "Meeting event id", kind="int", help="Takes precedence over the date fields."),
         ),
+        examples=("What's on a committee's agenda this week?", "What will this committee discuss at its next meeting?"),
+        provides="The order of business for a committee meeting, found by meeting id, committee+date, or date alone.",
     ),
 )
 
