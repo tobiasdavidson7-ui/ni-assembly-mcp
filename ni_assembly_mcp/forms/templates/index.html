@@ -1,33 +1,63 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="hero">
-  <h1>The Northern Ireland Assembly,<br><em>opened to all</em>.</h1>
-  <p class="lede">Look up your MLA, see how they voted, or read what was said in a
-  debate — straight from the official records. Prefer to ask in plain English?
-  <a href="/connect">Chat with your own AI</a> instead.</p>
+  <h1>Search what was actually <em>said</em> in the Assembly.</h1>
+  <p class="lede">Find the words behind the votes: full debates, questions and
+  answers, and motions, alongside the members and votes themselves — straight
+  from the official records.</p>
+  <p class="lede">Not just vote counts — the actual words, searchable. Prefer to
+  ask in plain English? <a href="/connect">Chat with your own AI</a> instead.</p>
+</section>
+
+<section class="start">
+  <h2 class="start-title">What you get here — and what you won't</h2>
+  <div class="compare">
+    <div class="compare-col">
+      <p class="compare-label">What this is</p>
+      <ul class="plain-list">
+        <li>Full-text search of debates (Hansard)</li>
+        <li>Search of parliamentary questions and their answers</li>
+        <li>Motions, amendments and related bills</li>
+        <li>Recorded votes (divisions) and member details</li>
+      </ul>
+    </div>
+    <div class="compare-col">
+      <p class="compare-label">What this isn't</p>
+      <ul class="plain-list">
+        <li>Not a stats dashboard or attendance tracker</li>
+        <li>Not a vote-tracking leaderboard</li>
+        <li>Not a news or commentary site</li>
+      </ul>
+    </div>
+  </div>
 </section>
 
 <section class="start">
   <h2 class="start-title">Example Questions (and where to look)</h2>
   <ul class="register-list">
-    <li><a class="register-row" href="/forms/divisions">
-      <span class="register-row-title">How did a member vote on something?</span>
-      <span class="register-row-summary">Recorded votes (divisions)</span>
-      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-    </a></li>
     <li><a class="register-row" href="/forms/contributions">
-      <span class="register-row-title">What did someone say in a debate?</span>
+      <span class="register-row-title">What did someone say about a topic in a debate?</span>
       <span class="register-row-summary">Search contributions</span>
-      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-    </a></li>
-    <li><a class="register-row" href="/forms/business-diary">
-      <span class="register-row-title">What's happening at the Assembly this week?</span>
-      <span class="register-row-summary">Business diary</span>
       <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
     </a></li>
     <li><a class="register-row" href="/forms/questions">
       <span class="register-row-title">Has this issue been raised before?</span>
       <span class="register-row-summary">Search parliamentary questions</span>
+      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
+    </a></li>
+    <li><a class="register-row" href="/forms/questions">
+      <span class="register-row-title">What was a minister's answer to a question about X?</span>
+      <span class="register-row-summary">Search parliamentary questions</span>
+      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
+    </a></li>
+    <li><a class="register-row" href="/forms/divisions">
+      <span class="register-row-title">How did a member vote on something?</span>
+      <span class="register-row-summary">Recorded votes (divisions)</span>
+      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
+    </a></li>
+    <li><a class="register-row" href="/forms/business-diary">
+      <span class="register-row-title">What's happening at the Assembly this week?</span>
+      <span class="register-row-summary">Business diary</span>
       <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
     </a></li>
     <li><a class="register-row" href="/forms/committees">

@@ -158,6 +158,15 @@
   }
   .start .register-list li:first-child { border-top: none; }
 
+  /* index.html — "what this is / isn't" comparison block */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem 2rem; margin: 0 0 1.2rem; }
+  .compare-label {
+    font-weight: 700; font-size: .92rem; margin: 0 0 .4rem; color: var(--ink);
+  }
+  @media (max-width: 640px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+
   /* index.html — reassurance line (moved out of the hero, kept short) */
   .reassurance { color: var(--ink-soft); font-size: .88rem; margin: 0 0 2.8rem; }
 
@@ -441,6 +450,11 @@
   speaker identifiers are CC BY-SA 2.5.</p>
   <p>This site is not affiliated with the Northern Ireland Assembly or with
   mySociety / TheyWorkForYou. It never sends your queries to any language model.</p>
+  <p>This isn't the only way to explore the Assembly's public data — other sites
+  cover votes and activity stats well. This one focuses on searching the actual
+  content of what's said and asked: debates, questions, answers and motions. The
+  same data is also available as an MCP tool, so an AI assistant can query it
+  directly — see <a href="/connect">connect your client</a> for that option.</p>
 </footer>
 </body>
 </html>
