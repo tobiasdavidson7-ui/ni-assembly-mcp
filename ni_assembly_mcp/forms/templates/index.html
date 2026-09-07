@@ -70,17 +70,26 @@ bring your own</a>.</p>
     <span class="topic-name">{{ group }}</span>
     <span class="topic-gloss">{{ group_gloss.get(group, "") }}</span>
   </summary>
-  <ul class="register-list">
-    {% for spec in specs %}
-    <li>
-      <a class="register-row" href="/forms/{{ spec.name }}">
-        <span class="register-row-title">{{ spec.title }}</span>
-        <span class="register-row-summary">{{ spec.blurb or spec.summary }}</span>
-        <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-      </a>
-    </li>
-    {% endfor %}
-  </ul>
+  <div class="topic-body{% if loop.first %} topic-body-with-aside{% endif %}">
+    <ul class="register-list">
+      {% for spec in specs %}
+      <li>
+        <a class="register-row" href="/forms/{{ spec.name }}">
+          <span class="register-row-title">{{ spec.title }}</span>
+          <span class="register-row-summary">{{ spec.blurb or spec.summary }}</span>
+          <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if loop.first %}
+    <aside class="topic-callout">
+      <p>Found a snippet of a statement in <strong>Search contributions</strong> you
+      want to use? Copy its speech id and paste it into <strong>Contribution
+      detail</strong> for the full quote!</p>
+    </aside>
+    {% endif %}
+  </div>
 </details>
 {% endfor %}
 {% endblock %}

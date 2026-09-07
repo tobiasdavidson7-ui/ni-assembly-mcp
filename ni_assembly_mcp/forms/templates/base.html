@@ -180,6 +180,19 @@
   }
   .topic-gloss { color: var(--ink-soft); font-size: .88rem; }
   .topic .register-list { margin: 0 0 1.2rem; }
+  .topic-body-with-aside {
+    display: grid; grid-template-columns: 1fr 15rem; gap: 1rem 1.6rem; align-items: start;
+  }
+  .topic-callout {
+    margin: .1rem 0 0; padding: .9rem 1rem; border: 1px solid var(--hairline);
+    border-left: 3px solid var(--accent); border-radius: var(--radius);
+    background: var(--paper-raised); font-size: .84rem; color: var(--ink-soft);
+  }
+  .topic-callout p { margin: 0; }
+  .topic-callout strong { color: var(--ink); font-weight: 600; }
+  @media (max-width: 640px) {
+    .topic-body-with-aside { grid-template-columns: 1fr; }
+  }
 
   /* index.html — register (form groups), also reused by .start above */
   .register-list { list-style: none; margin: 0; padding: 0; }
