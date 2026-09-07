@@ -106,21 +106,26 @@ def _count(default_hint: int) -> FormField:
     )
 
 
-REFERENCE = "Reference lists"
-MEMBERS = "Members"
+HANSARD = "What was said"
 QUESTIONS = "Questions"
-PLENARY = "Plenary business & divisions"
-HANSARD = "Official Report (Hansard)"
-COMMITTEES = "Committees"
+PLENARY = "Votes & motions"
+MEMBERS = "People"
+# Committees and the plain reference lists (departments, parties, constituencies)
+# share one group — they're the "structure" of the Assembly, not its content.
+COMMITTEES = "Committees & structure"
+REFERENCE = "Committees & structure"
+
+# Homepage group display order: content-search groups first, entity lookup last —
+# see site-ordering-addendum.md. Dict order, not the order forms are declared below.
+GROUP_ORDER: tuple[str, ...] = (HANSARD, QUESTIONS, PLENARY, MEMBERS, COMMITTEES)
 
 # One-line plain-language gloss shown next to each collapsed group on the homepage.
 GROUP_GLOSS: dict[str, str] = {
-    REFERENCE: "Departments, parties, constituencies and committees, as plain lookup lists.",
-    MEMBERS: "Find an MLA, and see their roles, interests and voting record.",
+    HANSARD: "What was said, by whom, and when.",
     QUESTIONS: "Written and oral questions to ministers, and their answers.",
     PLENARY: "Divisions, tabled motions, and what's coming up in the Chamber.",
-    HANSARD: "What was said, by whom, and when.",
-    COMMITTEES: "What a committee covers, and what's on its agenda.",
+    MEMBERS: "Find an MLA, and see their roles, interests and voting record.",
+    COMMITTEES: "What a committee covers, plus departments, parties and constituencies.",
 }
 
 

@@ -23,7 +23,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from starlette.responses import FileResponse, HTMLResponse
 
 from ni_assembly_mcp.forms.render import normalise
-from ni_assembly_mcp.forms.specs import FORMS, FORMS_BY_NAME, GROUP_GLOSS, FormField, FormSpec, clamp_counts
+from ni_assembly_mcp.forms.specs import FORMS, FORMS_BY_NAME, GROUP_GLOSS, GROUP_ORDER, FormField, FormSpec, clamp_counts
 from ni_assembly_mcp.settings import settings
 
 if TYPE_CHECKING:
@@ -45,7 +45,8 @@ def _grouped() -> list[tuple[str, list[FormSpec]]]:
     groups: dict[str, list[FormSpec]] = {}
     for spec in FORMS:
         groups.setdefault(spec.group, []).append(spec)
-    return list(groups.items())
+    # Present groups in GROUP_ORDER (content-search first), not FORMS declaration order.
+    return [(name, groups[name]) for name in GROUP_ORDER if name in groups]
 
 
 def _render(template: str, **ctx: object) -> HTMLResponse:

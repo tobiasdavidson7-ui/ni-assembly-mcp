@@ -45,14 +45,14 @@
       <span class="register-row-summary">Recorded votes (divisions)</span>
       <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
     </a></li>
+    <li><a class="register-row" href="/forms/members">
+      <span class="register-row-title">Who is my MLA?</span>
+      <span class="register-row-summary">Search members</span>
+      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
+    </a></li>
     <li><a class="register-row" href="/forms/business-diary">
       <span class="register-row-title">What's happening at the Assembly this week?</span>
       <span class="register-row-summary">Business diary</span>
-      <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
-    </a></li>
-    <li><a class="register-row" href="/forms/committees">
-      <span class="register-row-title">What does a committee cover?</span>
-      <span class="register-row-summary">List all committees</span>
       <span class="register-row-arrow" aria-hidden="true">&rarr;</span>
     </a></li>
   </ul>
@@ -65,7 +65,7 @@ bring your own</a>.</p>
 <h2 class="start-title">Know what you're looking for? See below</h2>
 
 {% for group, specs in groups %}
-<details class="topic">
+<details class="topic"{% if loop.first %} open{% endif %}>
   <summary class="topic-summary">
     <span class="topic-name">{{ group }}</span>
     <span class="topic-gloss">{{ group_gloss.get(group, "") }}</span>
